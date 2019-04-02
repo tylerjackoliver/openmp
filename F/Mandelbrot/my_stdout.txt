@@ -1,7 +1,0 @@
- Hello from thread 0
- Hello from thread 2
- Hello from thread 1
- Hello from thread 3
- Area of Mandelbrot set =  1.509354829788208  +/-  7.54677414894104029E-4
- Time required: 5.
-Application 34078260 resources: utime ~20s, stime ~0s, Rss ~7064, inblocks ~7433, outblocks ~18765
