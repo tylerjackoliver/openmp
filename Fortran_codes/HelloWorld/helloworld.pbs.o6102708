@@ -1,0 +1,29 @@
+--------------------------------------------------------------------------------
+*** jtyler   Job: 6102708.sdb   started: 02/04/19 12:06:38   host: mom3 ***
+*** jtyler   Job: 6102708.sdb   started: 02/04/19 12:06:38   host: mom3 ***
+*** jtyler   Job: 6102708.sdb   started: 02/04/19 12:06:38   host: mom3 ***
+*** jtyler   Job: 6102708.sdb   started: 02/04/19 12:06:38   host: mom3 ***
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Running OpenMP program helloworld on 4 threads
+Started at Tue Apr 2 12:06:39 BST 2019
+--------------------------------------------------------------------------------
+aprun: file ./helloworld not found
+aprun: Exiting due to errors. Application aborted
+
+real	0m0.933s
+user	0m0.136s
+sys	0m0.112s
+--------------------------------------------------------------------------------
+Finished at Tue Apr 2 12:06:39 BST 2019
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=24,place=free,walltime=00:01:00
+Resources allocated: cpupercent=0,cput=00:00:00,mem=0kb,ncpus=24,vmem=0kb,walltime=00:00:02
+
+*** jtyler   Job: 6102708.sdb   ended: 02/04/19 12:06:40   queue: standard ***
+*** jtyler   Job: 6102708.sdb   ended: 02/04/19 12:06:40   queue: standard ***
+*** jtyler   Job: 6102708.sdb   ended: 02/04/19 12:06:40   queue: standard ***
+*** jtyler   Job: 6102708.sdb   ended: 02/04/19 12:06:40   queue: standard ***
+--------------------------------------------------------------------------------

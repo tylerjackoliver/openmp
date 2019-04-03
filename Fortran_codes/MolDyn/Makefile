@@ -3,7 +3,7 @@
 #
 
 #flags for Cray
-FFLAGS =
+FFLAGS = -O3
 FC = ftn
 
 #flags for Intel 

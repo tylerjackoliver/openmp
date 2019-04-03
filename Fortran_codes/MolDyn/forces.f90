@@ -17,6 +17,10 @@ subroutine forces(npart, x, f, vir, epot, side, rcoff)
   sideh = 0.5d0*side
   rcoffs = rcoff*rcoff
 !
+  !$OMP PARALLEL DO DEFAULT(NONE) SHARED(npart,x,f,side,sideh,rcoffs) &
+  !$OMP PRIVATE(i,j,xi,yi,zi,fxi,fyi,fzi,xx,yy,zz,rd,rrd,rrd2,rrd3,rrd4,&
+  !$OMP rrd6,rrd7,r148,forcex,forcey,forcez) &
+  !$OMP reduction(-:vir) reduction(+:epot) SCHEDULE(GUIDED, 400)
   do i = 1,npart
      xi = x(i,1)
      yi = x(i,2)
@@ -47,18 +51,22 @@ subroutine forces(npart, x, f, vir, epot, side, rcoff)
            vir = vir - rd*r148
            forcex = xx * r148
            fxi = fxi + forcex
-           f(j,1) = f(j,1) - forcex
            forcey = yy * r148
            fyi = fyi + forcey
-           f(j,2) = f(j,2) - forcey
            forcez = zz * r148
            fzi = fzi + forcez
+!$OMP CRITICAL 
+           f(j,1) = f(j,1) - forcex
+           f(j,2) = f(j,2) - forcey
            f(j,3) = f(j,3) - forcez
+!$OMP END CRITICAL 
         endif
      end do
+!$OMP CRITICAL 
      f(i,1) = f(i,1) + fxi
      f(i,2) = f(i,2) + fyi
      f(i,3) = f(i,3) + fzi
+!$OMP END CRITICAL 
   end do
 !
 end subroutine forces

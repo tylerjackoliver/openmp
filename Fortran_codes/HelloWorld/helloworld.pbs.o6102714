@@ -1,0 +1,32 @@
+--------------------------------------------------------------------------------
+*** jtyler   Job: 6102714.sdb   started: 02/04/19 12:07:34   host: mom5 ***
+*** jtyler   Job: 6102714.sdb   started: 02/04/19 12:07:34   host: mom5 ***
+*** jtyler   Job: 6102714.sdb   started: 02/04/19 12:07:34   host: mom5 ***
+*** jtyler   Job: 6102714.sdb   started: 02/04/19 12:07:34   host: mom5 ***
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Running OpenMP program helloworld on 4 threads
+Started at Tue Apr 2 12:07:35 BST 2019
+--------------------------------------------------------------------------------
+ Hello from thread number 0
+ Hello from thread number 1
+ Hello from thread number 2
+ Hello from thread number 3
+Application 34079409 resources: utime ~0s, stime ~0s, Rss ~7064, inblocks ~7433, outblocks ~18764
+
+real	0m2.569s
+user	0m0.392s
+sys	0m0.196s
+--------------------------------------------------------------------------------
+Finished at Tue Apr 2 12:07:37 BST 2019
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=24,place=free,walltime=00:01:00
+Resources allocated: cpupercent=0,cput=00:00:01,mem=0kb,ncpus=24,vmem=0kb,walltime=00:00:04
+
+*** jtyler   Job: 6102714.sdb   ended: 02/04/19 12:07:37   queue: standard ***
+*** jtyler   Job: 6102714.sdb   ended: 02/04/19 12:07:37   queue: standard ***
+*** jtyler   Job: 6102714.sdb   ended: 02/04/19 12:07:37   queue: standard ***
+*** jtyler   Job: 6102714.sdb   ended: 02/04/19 12:07:37   queue: standard ***
+--------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 #
 # Fortran compiler and options for Cray
 #
-#FC=	ftn
+FC=	ftn
 
 #
 # Fortran compiler and options for Intel
@@ -18,7 +18,7 @@
 #
 # Fortran compiler and options for GNU 
 #
-FC=	gfortran -O3 -fopenmp 
+#FC=	gfortran -O3 -fopenmp 
 
 #
 # Object files

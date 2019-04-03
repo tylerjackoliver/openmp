@@ -1,18 +1,19 @@
 program area_mandelbrot
-
+ 
   use omp_lib
 
   implicit none
 !
+
   integer, parameter :: sp = kind(1.0)   
   integer, parameter :: dp = kind(1.0d0)
   integer :: i, j, iter, numoutside
   integer, parameter :: npoints = 2000, maxiter = 2000
   real (kind=dp) :: area, error
   complex (kind=dp) :: c , z
-  integer :: nthreads = 2
 
-  real :: start, finish ! Timing variables
+  real :: start,finish
+
 !
 ! Calculate area of mandelbrot set
 !
@@ -21,21 +22,20 @@ program area_mandelbrot
 !    Inner loop has the iteration z=z*z+c, and threshold test
 !
 
-  call OMP_SET_NUM_THREADS(nthreads)
+  numoutside = 0 
 
   ! Test we have a parallel region
   !$OMP PARALLEL DO
-  do i=1,nthreads
-
-    write(*,*) "Hello from thread", OMP_GET_THREAD_NUM()
-
+  do i = 1,4
+      write(*,*) "Hello from thread", omp_get_thread_num()
   end do
   !$OMP END PARALLEL DO
 
-  start = OMP_GET_WTIME()
+  ! Begin timing
+  start = omp_get_wtime()
 
-  numoutside = 0 
-  !$OMP PARALLEL DO PRIVATE(J, C, Z, ITER), REDUCTION(+:NUMOUTSIDE)
+  !$OMP PARALLEL DO DEFAULT(SHARED), PRIVATE(J, C, Z, ITER), &
+  !$OMP REDUCTION(+:numoutside)
   do i = 0,npoints-1 
      do j= 0,npoints-1 
         c = cmplx(-2.0+(2.5*i)/npoints + 1.0d-07,(1.125*j)/npoints + 1.0d-07)
@@ -53,7 +53,6 @@ program area_mandelbrot
   end do
   !$OMP END PARALLEL DO
 
-
 !
 ! Output results
 !
@@ -62,7 +61,9 @@ program area_mandelbrot
   print *, "Area of Mandelbrot set = ",area," +/- ",error
 !
 
-  finish = OMP_GET_WTIME()
+  ! Re-time
+
+  finish = omp_get_wtime()
 
   write(*,*) "Time required:", finish-start
 
