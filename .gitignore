@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# Profiling files
+*.ap2
+*.xf
+
+# Job submission files
+*.e*
+*.o*
