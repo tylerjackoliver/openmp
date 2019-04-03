@@ -1,0 +1,17 @@
+--------------------------------------------------------------------------------
+*** jtyler   Job: 6105455.sdb   started: 03/04/19 12:14:26   host: mom1 ***
+*** jtyler   Job: 6105455.sdb   started: 03/04/19 12:14:26   host: mom1 ***
+*** jtyler   Job: 6105455.sdb   started: 03/04/19 12:14:26   host: mom1 ***
+*** jtyler   Job: 6105455.sdb   started: 03/04/19 12:14:26   host: mom1 ***
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=24,place=free,walltime=00:10:00
+Resources allocated: cpupercent=0,cput=00:00:01,mem=0kb,ncpus=24,vmem=0kb,walltime=00:00:03
+
+*** jtyler   Job: 6105455.sdb   ended: 03/04/19 12:14:28   queue: standard ***
+*** jtyler   Job: 6105455.sdb   ended: 03/04/19 12:14:28   queue: standard ***
+*** jtyler   Job: 6105455.sdb   ended: 03/04/19 12:14:28   queue: standard ***
+*** jtyler   Job: 6105455.sdb   ended: 03/04/19 12:14:28   queue: standard ***
+--------------------------------------------------------------------------------

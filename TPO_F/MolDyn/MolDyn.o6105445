@@ -1,0 +1,40 @@
+--------------------------------------------------------------------------------
+*** jtyler   Job: 6105445.sdb   started: 03/04/19 12:09:23   host: mom2 ***
+*** jtyler   Job: 6105445.sdb   started: 03/04/19 12:09:23   host: mom2 ***
+*** jtyler   Job: 6105445.sdb   started: 03/04/19 12:09:23   host: mom2 ***
+*** jtyler   Job: 6105445.sdb   started: 03/04/19 12:09:23   host: mom2 ***
+
+--------------------------------------------------------------------------------
+ molecular dynamics simulation example program
+ ---------------------------------------------
+
+ number of particles is ............  13500
+ side length of the box is .........     25.323179
+ cut off is ........................      3.750000
+ reduced temperature is ............      0.722000
+ basic time step is ................      0.064000
+ temperature scale interval ........     10
+ stop scaling at move ..............     20
+ print interval ....................      5
+ total no. of steps ................     20
+
+
+    i       ke          pe           e         temp      pres      vel      rp
+  -----  ----------  ----------  ----------  --------  --------  --------  ----
+      5  12605.4960 -91971.9543 -79366.4583    0.6225   -5.2824    0.1819  39.7
+     10  14619.4170 -86130.4704 -71511.0534    0.7220   -2.8062    0.1332  14.0
+     15  11437.3540 -82947.8327 -71510.4788    0.5648   -1.4959    0.1717  34.0
+     20  10959.2937 -82471.4298 -71512.1361    0.5412   -1.2383    0.1687  33.4
+  
+ Time =  16.6819096
+Application 34090971 resources: utime ~66s, stime ~2s, Rss ~55484, inblocks ~11672, outblocks ~34302
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=24,place=free,walltime=00:10:00
+Resources allocated: cpupercent=0,cput=00:00:01,mem=8492kb,ncpus=24,vmem=171856kb,walltime=00:00:21
+
+*** jtyler   Job: 6105445.sdb   ended: 03/04/19 12:09:45   queue: standard ***
+*** jtyler   Job: 6105445.sdb   ended: 03/04/19 12:09:45   queue: standard ***
+*** jtyler   Job: 6105445.sdb   ended: 03/04/19 12:09:45   queue: standard ***
+*** jtyler   Job: 6105445.sdb   ended: 03/04/19 12:09:45   queue: standard ***
+--------------------------------------------------------------------------------
