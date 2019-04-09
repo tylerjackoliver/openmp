@@ -34,9 +34,6 @@
 *.ap2
 *.xf
 
-# Job submission files
-*.e*
-*.o*
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
