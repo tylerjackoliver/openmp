@@ -28,7 +28,6 @@
 
 # Executables
 *.exe
-*.out
 *.app
 
 # Profiling files
@@ -44,7 +43,6 @@
 *.log
 *.lot
 *.fls
-*.out
 *.toc
 *.fmt
 *.fot
