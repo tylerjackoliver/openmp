@@ -1,0 +1,107 @@
+#!/bin/bash --login
+
+####
+#### BASH SCRIPT TO AUTOMATE THE SUBMITTING OF JOBS FOR LOOP SCHEDULING
+####
+
+# For testing
+
+SCHEDULE_TYPES=(STATIC DYNAMIC GUIDED)
+CHUNK_SIZE=(1 2 4 8 16 32 64)
+
+# First, set common job variables
+
+#PBS -A y14
+
+export PBS_O_WORKDIR=$(readlink -f $PBS_O_WORKDIR) 
+export OMP_NUM_THREADS=6
+
+# Do the first command; AUTO (can't do this in a do-loop)
+
+export OMP_SCHEDULE=AUTO
+
+NAME=schedule_auto
+echo "Submitting: ${NAME}"
+
+# Build a string called PBS which contains the instructions for your run
+# This requests 1 node, 6 threads for 5 mins. Runs a program called "loops"
+
+# Make the folder for the results if it doesn't already exist
+
+
+if [ ! -d ${NAME} ] 
+then
+
+    mkdir -p ${NAME}
+
+fi
+
+for i in 1 2
+do
+
+PBS="#!/bin/bash\n\
+    #PBS -N ${NAME}\n\
+    #PBS -l select=1\n\
+    #PBS -l walltime=0:05:00\n\
+    #PBS -o ${NAME}/output.out\n\
+    #PBS -e ${NAME}/error.err\n\
+    #PBS -A y14\n\
+    #PBS -v OMP_SCHEDULE=AUTO\n\ 
+    #PBS -F 6\n\
+    cd \$PBS_O_WORKDIR/${NAME}\n\
+    aprun -n 1 -d 6 ../loops 6"
+
+#echo -e ${PBS} | qsub
+done
+
+# Note that $PBS_O_WORKDIR is escaped ("\"). We don't want bash to evaluate this variable right now. Instead it will be evaluated when the command runs on the node.
+
+# Loop through the different seed values and submit a run for each
+
+for sched in STATIC DYNAMIC GUIDED
+#for sched in DYNAMIC
+do
+
+    for chunk in 2
+   # for chunk in 1 4 8 16 32 64
+    do
+	
+    	# set the job name
+        NAME=${sched}_${chunk}
+    	echo "Submitting: ${NAME}"
+    	export OMP_SCHEDULE=${sched},${chunk}
+	
+        # Make the folder for the results if it doesn't already exist
+
+        if [ ! -d ${NAME} ] 
+        then
+    
+            mkdir -p ${NAME}
+
+        fi
+
+    	# Build a string called PBS which contains the instructions for the run
+        PBS="#!/bin/bash\n\
+        #PBS -N ${NAME}\n\
+        #PBS -l select=1\n\
+        #PBS -l walltime=0:05:00\n\
+        #PBS -o ${NAME}/output.out\n\
+        #PBS -e ${NAME}/error.err\n\
+        #PBS -A y14\n\
+        #PBS -v OMP_SCHEDULE\n\
+        cd \$PBS_O_WORKDIR/${NAME}\n\
+        aprun -n 1 -d 6 ../loops 6" 
+    	
+# Note that $PBS_O_WORKDIR is escaped ("\"). We don't want bash to evaluate this variable right now. Instead it will be evaluated when the command runs on the node.
+    	
+    	# Echo the string PBS to the function qsub, which submits it as a cluster job for you
+    	# A small delay is included to avoid overloading the submission process
+    	
+        echo -e ${PBS} | qsub
+    	sleep 15 # Sleep so we don't over-stress PBS
+    	echo "done."
+    
+    done
+
+done
+
