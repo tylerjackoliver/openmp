@@ -150,7 +150,7 @@ subroutine loop1()
 ! is SCHEDULE(GUIDED, 1).
 !
 
-  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(A, B) SCHEDULE(RUNTIME)
+!  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(A, B) SCHEDULE(RUNTIME)
   do i = 1,N
 
     do j = N,i,-1 
@@ -160,7 +160,7 @@ subroutine loop1()
     end do
   
   end do
-  !$OMP END PARALLEL DO
+!  !$OMP END PARALLEL DO
 
 end subroutine loop1 
 
@@ -183,7 +183,7 @@ subroutine loop2()
 ! is SCHEDULE(GUIDED, 1).
 !
 
-  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(JMAX, RN2, B, C) SCHEDULE(RUNTIME)
+!  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(JMAX, RN2, B, C) SCHEDULE(RUNTIME)
   do i = 1,N
 
      do j = 1, jmax(i) 
@@ -197,7 +197,7 @@ subroutine loop2()
     end do
   
   end do
-  !$OMP END PARALLEL DO
+!  !$OMP END PARALLEL DO
 
 end subroutine loop2
 

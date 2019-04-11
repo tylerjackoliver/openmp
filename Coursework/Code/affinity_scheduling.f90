@@ -319,10 +319,8 @@ end subroutine loop1_chunk
 
 
 subroutine run_loop2()
-    !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 2.
-    !
-    ! Essentially a carbon-copy of loop 1.
+        !
+    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 1.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
@@ -340,7 +338,7 @@ subroutine run_loop2()
     integer             :: most_work                                                                    ! Holds the thread ID of the thread with the most work left
     integer             :: remaining_iters 
     integer             :: chunk_size
-
+    
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
     !
@@ -391,7 +389,7 @@ subroutine run_loop2()
         ! for such a small increase in 'prettiness', the practicality impact isn't worth it.
         !
 
-        !$OMP CRITICAL
+        !$OMP CRITICAL(main)
 
         remaining_iters          = num_iters(thread_id + 1)                                             ! Set the number of iterations reamining for this thread
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
@@ -399,7 +397,7 @@ subroutine run_loop2()
                                                                                                         ! that we are going to go ahead and do this work.
         lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
-        !$OMP END CRITICAL
+        !$OMP END CRITICAL(main)
 
         ! Back in the parallel region; compute this chunk    
 
@@ -427,7 +425,7 @@ subroutine run_loop2()
         ! Going to cost us performance, but we can profile after to see how much.
         !
 
-        !$OMP CRITICAL
+        !$OMP CRITICAL(main)
         
         ! Let's first find where the largest amount of work is
         
@@ -450,44 +448,42 @@ subroutine run_loop2()
 
         ! End the critical region; we can go back to parallel now we've updated the shared arrays
 
-        !$OMP END CRITICAL
+        !$OMP END CRITICAL(main)
 
         call loop2_chunk(lower_counter, lower_counter + chunk_size)                                     ! Compute the other thread's work; since the arrays are shared, no need to play
                                                                                                         ! with reductions.
 
     end do
     !$OMP END PARALLEL
+
 end subroutine run_loop2
 
 
 subroutine loop2_chunk(low_bound, high_bound) 
 
-  implicit none 
+    implicit none 
 
-  integer, intent(in) :: low_bound
-  integer, intent(in) :: high_bound
+    integer, intent(in) :: low_bound 
+    integer, intent(in) :: high_bound
 
-  integer             :: i
-  integer             :: j
-  integer             :: k
+    integer       :: i, j, k
+    real (kind=8) :: rN2  
   
-  real (kind=8)       :: rN2  
-
-  rN2 = 1.0 / dble (N*N)  
-
-  do i = low_bound, high_bound
-
-    do j = 1, jmax(i)                                                                                       ! j arbitrarily scales the amount of work each thread must do;
-                                                                                                            ! induces bad load-balancing
-        do k = 1,j 
-           
-            c(i) = c(i) + k * log(b(j,i)) * rN2
-        
-        end do
+    rN2 = 1.0 / dble (N*N)  
+  
+    do i = low_bound+1, high_bound
+  
+       do j = 1, jmax(i) 
      
+          do k = 1,j 
+             
+              c(i) = c(i) + k * log(b(j,i)) * rN2
+          
+          end do
+       
+      end do
+    
     end do
-  
-  end do
 
 end subroutine loop2_chunk
 

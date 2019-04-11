@@ -1,0 +1,56 @@
+#!/bin/bash --login
+
+####
+#### BASH SCRIPT TO AUTOMATE THE SUBMITTING OF JOBS FOR LOOP SCHEDULING
+####
+
+# First, set common job variables
+
+#PBS -A y14
+
+export PBS_O_WORKDIR=$(readlink -f $PBS_O_WORKDIR) 
+
+# Do the first command; AUTO (can't do this in a do-loop)
+
+export OMP_SCHEDULE=AUTO
+
+
+for threads in 1 2 3 6 12 24
+do
+
+    # set the job name
+    NAME=BEST_${threads}
+    echo "Submitting: ${NAME}"
+	
+    # Make the folder for the results if it doesn't already exist
+
+    if [ ! -d ${NAME} ] 
+      then
+    
+        mkdir -p ${NAME}
+
+    fi
+
+    # Build a string called PBS which contains the instructions for the run
+    PBS="#!/bin/bash\n\
+    #PBS -N ${NAME}\n\
+    #PBS -l select=1\n\
+    #PBS -l walltime=0:05:00\n\
+    #PBS -o ${NAME}/output.out\n\
+    #PBS -e ${NAME}/error.err\n\
+    #PBS -A y14\n\
+    #PBS -v OMP_SCHEDULE\n\
+    cd \$PBS_O_WORKDIR/${NAME}\n\
+    aprun -n 1 -d ${threads} ../loops_best ${threads}" 
+    	
+# Note that $PBS_O_WORKDIR is escaped ("\"). We don't want bash to evaluate this variable right now. Instead it will be evaluated when the command runs on the node.
+    	
+    	# Echo the string PBS to the function qsub, which submits it as a cluster job for you
+    	# A small delay is included to avoid overloading the submission process
+    	
+    echo -e ${PBS} | qsub
+    sleep 5 # Sleep so we don't over-stress PBS
+    echo "done."
+    
+done
+

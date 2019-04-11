@@ -1,0 +1,3 @@
+=>> PBS: job killed: walltime 307 exceeded limit 300
+aprun: Apid 34174343: Caught signal Terminated, sending to application
+_pmiu_daemon(SIGCHLD): [NID 00576] [c3-0c0s0n0] [Thu Apr 11 17:25:03 2019] PE RANK 0 exit signal Terminated
