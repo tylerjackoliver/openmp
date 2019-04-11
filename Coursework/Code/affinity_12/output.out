@@ -1,0 +1,22 @@
+--------------------------------------------------------------------------------
+*** jtyler   Job: 6129527.sdb   started: 11/04/19 17:19:46   host: mom4 ***
+*** jtyler   Job: 6129527.sdb   started: 11/04/19 17:19:46   host: mom4 ***
+*** jtyler   Job: 6129527.sdb   started: 11/04/19 17:19:46   host: mom4 ***
+*** jtyler   Job: 6129527.sdb   started: 11/04/19 17:19:46   host: mom4 ***
+
+--------------------------------------------------------------------------------
+ Loop 1 check: Sum of a is  34089.081296253768
+ Total time for  100  reps of loop 1 =  1.89964059973135591E-2
+ Loop 2 check: Sum of c is  -2838985.5545871165
+ Total time for  100  reps of loop 2 =  8.28729260247200727E-2
+Application 34174340 resources: utime ~1s, stime ~0s, Rss ~10684, inblocks ~9358, outblocks ~24124
+--------------------------------------------------------------------------------
+
+Resources requested: ncpus=24,place=free,walltime=00:05:00
+Resources allocated: cpupercent=0,cput=00:00:01,mem=0kb,ncpus=24,vmem=0kb,walltime=00:00:04
+
+*** jtyler   Job: 6129527.sdb   ended: 11/04/19 17:19:49   queue: standard ***
+*** jtyler   Job: 6129527.sdb   ended: 11/04/19 17:19:49   queue: standard ***
+*** jtyler   Job: 6129527.sdb   ended: 11/04/19 17:19:49   queue: standard ***
+*** jtyler   Job: 6129527.sdb   ended: 11/04/19 17:19:49   queue: standard ***
+--------------------------------------------------------------------------------
