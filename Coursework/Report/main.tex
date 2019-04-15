@@ -69,10 +69,29 @@ some methods of synchronisation, or scheduling, may provide better performance f
 This report investigates the most effective scheduling algorithm for a particular computational problem on the ARCHER supercomputing cluster.
 In particular, it studies the effectiveness of scheduling algorithms provided by the OpenMP standard, compared to a static partitioned affinity schedule work-stealing algorithm, specifically designed for the computation problem at hand, and identifies many of the limitations and shortcomings in both the paralellisation of the algorithm, and in the analysis method. Knowledge of the OpenMP standard and parallel computing nomenclature is assumed in this report.
 
-\section*{Introduction to the Problem}
+\section*{Scheduling algorithms}
 
-The problem statement for this work is, at first glance, straightforward: to parallelise two examplar computation loops, and investigate the effect of OpenMP-standard scheduling algorithms, or indeed a third-party algorithm, on program runtime.
-However, it's worthwhile to first understand and consider potential approaches and pitfalls that may be experienced from an examination of the loop structures.
+Scheduling algorithms determine the distribution and synchronisation of work to the threads on the processor.
+It's possible to quantify a scheduling algorithm's performance based on its effectiveness in minimising four separate overheads:
+synchronisation, where threads must idle to wait for another thread to finish some task;
+communication, where interactions between processors do not proceed optimally, such as cache misses and non-local memory accesses;
+worker initialisation, where time is requried to initialise, schedule and destroy pools of parallel workers;
+and load imbalances, where some threads are idle while others are still performing work.
+The latter is perhaps the most important for this runtime optimisation, since the loops studied here are relatively poorly balanced.
+Indeed, a major metric used in this thread is the amount of time threads would spend idling.
+
+We may define two distinct types of self-scheduling algorithms: fixed, and variable.
+
+In fixed systems, each processor will be assigned a fixed amount of work at loop initialisation, and continue computing until all their assigned work is completed.
+While this can reduce scheduling overhead, in potentially only distributing and synchronising once, this method can be inappropriate for imbalanced loops, since some loops may idle unnecessarily while other threads are still working, providing a bottleneck on execution times.
+In the OpenMP standard, we may also specify the chunk size -- that is, the number of iterations assigned to each thread -- which can adjust scheduling performance depending on our load balancing.
+Small chunk sizes will incur large schediling overheads, but will be able to smooth out load imbalances by constantly reassigning work, regardless of other threads being busy.
+Similarly, large chunk sizes will reduce scheduling overheads, but amplify and load imbalances.
+
+Variable algorithms will adjust their chunk sizes as the loop progresses. 
+In the OpenMP standard, two such algorithms exist: \tp{DYNAMIC} and \tp{GUIDED}.
+\tp{DYNAMIC} functions by assigning variable chunk sizes to threads, and working on a `first-come, first-served' basis.
+This works well for imbalanced loops, since work can be reassigned while other threads are still idling, at the cost of scheduling overheads.
 
 \begin{figure}
     \begin{lstlisting}
@@ -90,9 +109,21 @@ However, it's worthwhile to first understand and consider potential approaches a
     \label{listing:loop1}
 \end{figure}
 
+\tp{GUIDED} functions similarly, but by assigning initially large numbers of iterations and then getting exponentially smaller.
+By doing so, the scheduling overheads are kept relatively small -- with the large chunk assignments at the beginning -- but the possibility for good load balancing is still present at the end of the iterations, when small chunks are used.
+
+Most compilers will also support an \tp{AUTO} option, which lets the compiler determine the scheduling to implement (be it OpenMP-standard or otherwise).
+However, there is no transparency in the scheduling implemented here, although there is the possibility of the scheduling changing to reflect observed behaviour with some compilers.
+
+\section*{Introduction to the Problem}
+
+The problem statement for this work is, at first glance, straightforward: to parallelise two examplar computation loops, and investigate the effect of OpenMP-standard scheduling algorithms, or indeed a third-party algorithm, on program runtime.
+However, it's worthwhile to first understand and consider potential approaches and pitfalls that may be experienced from an examination of the loop structures.
+
 Loop 1 (Figure \ref{listing:loop1}) is a simple, yet relatively imbalanced nested do-loop; each repetition of the inner do-loop is variable based on the value of \texttt{i}.
 As a result, threads that are assigned a different value of \tp{i} will perform a different amount of work (Figure \ref{fig:loop1work}).
-We might therefore expect scheduling algorithms that work well with a slight work imbalance to perform well on this problem, such as \tp{STATIC, \textit{n}}, \tp{GUIDED,\textit{n}}, or \tp{DYNAMIC,\textit{n}}. However, since the distribution of work is readily predictable, we may see good performance from the \tp{AUTO} option, which gives the compiler the authority to change the scheduling algorithm as it sees fit (including during runtime).
+We might therefore expect scheduling algorithms that work well with a slight work imbalance to perform well on this problem, such as \tp{GUIDED,\textit{n}}, or \tp{DYNAMIC,\textit{n}}. 
+However, since the distribution of work is readily predictable, we may see good performance from the \tp{AUTO} option, which gives the compiler the authority to change the scheduling algorithm as it sees fit (including during runtime).
 
 \begin{figure}
     \centering
@@ -108,17 +139,26 @@ We might therefore expect scheduling algorithms that work well with a slight wor
     \end{subfigure}
 \end{figure}
 
-Loop 2 (Figure \ref{listing:loop2}), however, is a poorly-balanced loop. The \texttt{i}-th element of \texttt{jmax} is initialised to either $1$ or $N$, depending on the value of \texttt{i}.
-As a result, a thread which is assigned the work of a value of \texttt{i} equal to $N$ will perform far more work than the threads with only $1$ inner iteration to compute (Figure \ref{fig:loop2work}).
-Loop scheduling algorithms that are suitable for loops with widely fluctuating work levels, such as DYNAMIC or GUIDED, would be expected to work well here.
+Loop 2 (Figure \ref{listing:loop2}) is a poorly-balanced loop.
+The \texttt{i}-th element of \texttt{jmax} is initialised to either $1$ or $N$, depending on the value of \texttt{i}.
+As a result, a thread which is assigned the work of a value of \texttt{i} equal to $N$ will perform far more work than the threads with only $1$ inner iteration (Figure \ref{fig:loop2work}).
+Loop scheduling algorithms that are suitable for loops with widely fluctuating work levels, such as \tp{DYNAMIC} or \tp{GUIDED}, would be expected to work well here.
+More specifically, since the majority of work is scheduled in the first 30 iterations, and approximately every 30 iterations thereafter, performance may be best for chunk sizes less than 30.
+The work repeated every 30 iterations will also prevent threads from becoming idle and accepting more work.
 
-Maximising loop performance can be seen as minimising the total idle time for threads: the more time each thread spends on computing the solution, the better our performance will be.
+\section*{OpenMP-standard Scheduling: Varying chunk sizes}
 
-\section*{OpenMP-standard Scheduling Algorithms}
+\subsection*{Implementation}
 
-The scheduling algorithms included in the OpenMP standard were considered first.
 Loop 1 and Loop 2 represent `embarassingly parallel' problems, and as such, parallelising the routines was relatively trivial: both loops were enclosed in a \tp{!\$OMP PARALLEL DO} construct, and set such that their arrays were shared (as well as \tp{rN2} in the case of Loop 2), with all other variables set private.
-The scheduling algorithm was then set to be allocated at runtime -- \tp{SCHEDULE(RUNTIME)} -- and the associated \tp{OMP\_RUNTIME} environment variable was exported to the compute node at job submission, which was controlled by a lightweight governing bash script that would parametrically generate the PBS submission file for every possible combination of scheduling algorithm and chunk size. The program was designed to take in the number of threads to use as a command line argument to the program execution. The results of an \tp{OMP\_GET\_SCHEDULE} call as part of the main Fortran program were printed to the screen to ensure the correct scheduling algorithms; the call returns an integer of type \tp{omp\_schedule\_kind} that can be cross-checked against the scheduling kinds contained in the \tp{omp\_lib\_kinds} module as part of \tp{libgomp}.
+The scheduling algorithm was then set to be allocated at runtime -- \tp{SCHEDULE(RUNTIME)} -- and the associated \tp{OMP\_RUNTIME} environment variable was exported to the compute node at job submission, which was controlled by a lightweight governing bash script that would parametrically generate the PBS submission file for every possible combination of scheduling algorithm and chunk size.
+The program was designed to take in the number of threads to use as a command line argument to the program execution.
+The results of an \tp{OMP\_GET\_SCHEDULE} call as part of the main Fortran program were printed to the screen to ensure the correct scheduling algorithms; the call returns an integer of type \tp{omp\_schedule\_kind} that can be cross-checked against the scheduling kinds contained in the \tp{omp\_lib\_kinds} module as part of \tp{libgomp}.
+
+Submitting all of the jobs as a batch also meant that the timing results were more accurate, as jobs were almost-guaranteed to be computed on the same node.
+Each job was repeated five times, and an average taken, to remove the effects of variable computational performance on each run.
+
+\subsection*{Results}
 
 % \begin{figure}
 %     \centering
@@ -146,18 +186,13 @@ The scheduling algorithm was then set to be allocated at runtime -- \tp{SCHEDULE
     \label{listing:loop2}
 \end{figure}
 
-Submitting all of the jobs as a batch also meant that the timing results were more accurate, as jobs were almost-guaranteed to be computed on the same node.
-Each job was also repeated five times, and an average taken, to further remove the effects of variable computational performance on each run.
-
 The results for Loop 1 are given in Figure \ref{fig:loop1results}. Clearly, the \tp{AUTO} scheduling performs worse than the serial case (note that, while the AUTO execution time has been extended across all chunk sizes, the chunk size was not specified and this has been done for clarity only.)
-It is not immediately clear why this scheduling option performs this poorly, as there is no transparency in the scheduling implemented, but it is clear that this option should be avoided here.
-Interestingly, the performance of the \tp{STATIC, \textit{n}} scheduling routine decreases with increases in chunk size.
-This is to be expected, and highlights the poor work-balancing of the loop; when threads are assigned contiguous chunks of $n$ iterations to perform, then the first threads will always perform more work than the final threads, due to the distribution of iterations (Figure \ref{fig:loop1work}).
-For low chunk sizes, the high-work loops is relatively well-distributed amongst all threads, and thus there is relatively little idling and generally decreased performance time.
-However, when high chunk sizes are used, the first thread takes the majority of the work, and thus acts as a bottleneck for the program execution. 
-The higher the chunk size, the longer the final threads are idling waiting for the first thread(s) to finish.
+It is not immediately clear why this scheduling option performs this poorly, as there is no transparency in the scheduling implemented, but it is clear that this option should be avoided.
 
-The performance of most of the routines with chunk size $1$ scheduling routine is also worse than the serial version. This highlights the scheduling overheads of OpenMP; the additional time to schedule and distribute work can introduce significant performance issues.
+The performance of the \tp{STATIC, \textit{n}} scheduling routine decreases with increases in chunk size.
+This is to be expected, and highlights the differences in balance in the loop; when contiguous chunks of $n$ iterations are distributed, the first threads will always perform more work than the final threads as a result of the work distribution for Loop 1.
+For low chunk sizes, the high-work loops are relatively well-distributed amongst all threads, and thus there is relatively little idling and generally decreased performance time.
+However, when high chunk sizes are used, the first thread takes the majority of the work, and thus acts as a bottleneck for the program execution: the higher the chunk size, the longer the final threads are idling waiting for the first thread(s) to finish.
 
 As expected, \tp{DYNAMIC} and \tp{GUIDED} perform well for this loop.
 Since \tp{DYNAMIC} assigns chunks of loop iterations to threads on a first-come, first-served basis, at small chunk sizes threads which are initially assigned less work will be assigned more work whilst other threads are still computing. 
@@ -170,18 +205,22 @@ Since \tp{DYNAMIC} assigns chunks of loop iterations to threads on a first-come,
     \label{fig:loop1results}
 \end{figure}
 
-Indeed, \tp{DYNAMIC,2} produces the best performance for this problem, with an execution time of $0.03449$s; with low chunk sizes, the difference between \tp{GUIDED}'s exponentially smaller, and \tp{DYNAMIC} constant, iteration allocations, may be negligible.
-However, with reference to Figure \ref{fig:loop1results}, \tp{DYNAMIC} has variable performance for varying chunk sizes, with \tp{GUIDED} having generally superior performance across all chunk sizes.
-\tp{GUIDED}'s scheduling matches the load-balancing well for this problem, and has a performance decrease from the optimum of only $.23\%$.
-Therefore, while \tp{DYNAMIC,2} is the fastest scheduling choice here, \tp{GUIDED} may prove to be more versatile.
+\tp{DYNAMIC,2} produces the best performance for this problem, but not by any considerable margin.
+It provides the best overall execution time of $0.03449$s, but this is only $.23\%$ above the average performance of the \tp{GUIDED} method. 
+In fact, \tp{GUIDED} has generally superior performance at most chunk sizes when compared to \tp{DYNAMIC}, and helps to smooth the slight imbalance in the loops to maximise performance.
+Therefore, while \tp{DYNAMIC,2} is the fastest scheduling choice here, \tp{GUIDED} may prove to be more versatile across a wider range of chunk sizes.
+
+Also note that the performance of most of the routines with chunk size $1$ is also worse than the serial version, highlighting the scheduling overheads of OpenMP.
 
 The results are relatively similar for Loop 2, and are provided in Figure \ref{fig:loop2results}. 
+
 Again, the \tp{AUTO} scheduling performs poorly, and routines with chunk size $1$ perform worse than the serial case.
 
 Because of the unusual loading in this loop, the first 30 iterations are required to do the maximum amount of work.
 Therefore, scheduling algorithms that spread this initial work out across threads would reduce idling times for the unloading threads and thus increase performance.
-This explains the behaviour of many of the scheduling algorithms above: when the chunk size begins to increase -- in the case of \tp{DYNAMIC} and \tp{GUIDED}, the minimum chunk size -- then fewer threads get assigned the initial amounts of work.
-While the \tp{DYNAMIC} and \tp{GUIDED} algorithms will compensate somewhat, by allowing threads that would otherwise be idle to be re-assigned work, the additional loads spaced 30 iterations apart will prevent threads from idling often and being re-assigned work.
+This explains the behaviour of many of the scheduling algorithms above: when the chunk size begins to increase -- in the case of \tp{DYNAMIC} and \tp{GUIDED}, the minimum chunk size -- then fewer threads get assigned the initial amounts of work, and thus execution times will rise.
+
+Note again that performance generally suffers with chunks over 32, which is as predicted upon first examination of the loop, as a result of high-work iterations being spaced 30 iterations apart.
 
 \begin{figure}
     \centering
@@ -191,16 +230,63 @@ While the \tp{DYNAMIC} and \tp{GUIDED} algorithms will compensate somewhat, by a
     \label{fig:loop2results}
 \end{figure}
 
-Interestingly, \tp{DYNAMIC} has constant performance for all chunk sizes; this may suggest that, since the chunk size passed to the scheduler specifies only the minimum chunk size used, the algorithm is using only large chunk sizes.
+Interestingly, \tp{DYNAMIC} has constant performance for all chunk sizes.
+This may suggest that, since the chunk size passed to the scheduler specifies only the minimum chunk size used, the algorithm is using only large chunk sizes.
 
-\tp{GUIDED}, and specifically \tp{GUIDED,8}, has the best execution time for this problem. This is again expected, with \tp{GUIDED} allowing threads with low amounts of work to accept work from other threads, and also forcing the latter portions of the loop iterations to be assigned in exponentially smaller chunks, spready the workload better.
+\tp{GUIDED}, and specifically \tp{GUIDED,8}, has the best execution time for this problem. This is again expected, with \tp{GUIDED} allowing threads with low amounts of work to accept more, and also forcing the latter portions of the loop iterations to be assigned in exponentially smaller chunks, spreading the workload better.
 
-As expected, however, the performance of both \tp{GUIDED} and \tp{STATIC} reduce with increases in chunk size.
+\section*{OpenMP-standard Scheduling: Thread numbers}
 
-Fastest method for loop 1: DYNAMIC,2
+Now we have determined the `best' scheduling options for each loop, we may investigate their thread-scaling.
+Ideally, we would experience a true linear scaling, where the execution time decreases as a linear function of the number of threads used.
+However, consider Amdahl's Law, which is often-cited in parallel computing:
 
-Fastest method for loop 2: GUIDED,8
+$$
+\text{Speedup}(s) = \frac{1}{\left( 1 - p\right) + \frac{p}{s}}
+$$
 
+which gives the factor of speedup, where $s$ represents the local speedup -- say, by parallelising -- and $p$ represents the amount of the program that is available to be parallelised.
+Amdahl's Law provides a good metric for determining the maximum speedup we can expect from a parallel program, and provides the deduction that speeding up programs by using parallelism will be limited by our serial regions. 
+In general, our processor efficiency -- how well we are using all our threads -- is a major limitation on program runtime.
+
+As a result, it is rare (or near impossible) to see true linear scaling; even for a program that has 95\% of its code base eligible to be paralellised, speed-up will never exceed a factor of 20, no matter how many threads are used.
+
+\begin{figure}
+    \centering
+    \includegraphics[height=.35\textheight]{part1_plots/bestruns_all}
+    \caption{Loop execution times with respect to the number of threads used; we do not obtain linear scaling here, as a result of OpenMP overheads, but we do see a general increase in performance with thread numbers, as expected.}
+    \label{fig:threadall}
+\end{figure}
+
+Figure \ref{fig:threadall} provides the speedup for both loops as the number of threads is varied.
+It's immediately obvious that program execution times decrease with increasing thread numbers, as expected.
+
+However, the scaling is generally poor, even despite the relatively large amount of parallelisable source code (recall that we are timing only the loop execution).
+Loop 1's scaling factor is $0.7332$ per additional thread, and Loop 2 $0.1233$. 
+
+\begin{figure}
+    \centering
+    \includegraphics[height=.35\textheight]{part1_plots/loop1_speedup.png}
+    \caption{The speedup for Loop 1 compared to the serial execution times. For low thread numbers, the scheduling overhead is not overcome, and performance suffers.}
+    \label{fig:loop1speedup}
+\end{figure}
+
+There are several reasons why this performance is lower than the theory predicts. 
+For Loop 1 (Figure \ref{fig:loop1speedup}), the optimal scheduling configuration has a low chunk-size, which is likely to incur significant scheduling overheads.
+Similarly, while the loop is only mildly imbalanced, we are also expecting some communication overhead when threads are reassigned work and the data must be moved in memory.
+
+DO SOME PROFILING HERE?!?!
+
+For Loop 2 (Figure \ref{fig:loop2speedup}), the scaling is generally much worse.
+Much of this, as discussed previously, will be due to synchronisation overheads when threads are kept working, and the extra few high-work iterations spaced evenly through the runtime will prevent threads becoming available.
+Other overheads, such as communication overheads, will also be present, but dominated by the synchronisation overheads.
+
+\begin{figure}
+    \centering
+    \includegraphics[height=.35\textheight]{part1_plots/loop2_speedup.png}
+    \caption{The speedup for Loop 2 compared to the serial execution times. The scaling here is poor as a result of the loading keeping threads working when they would otherwise be idle.}
+    \label{fig:loop2speedup}
+\end{figure}
 
 \section*{Affinity Scheduling}
 
@@ -220,14 +306,15 @@ By only reassigning at the point of imbalance, unlike \tp{DYNAMIC} or \tp{GUIDED
 
 \subsection*{Implementation}
 
-A description of the behaviour of the algorithm, and its' implementation, follows:
+A description the algorithms' implementation follows:
 
 Each thread is initially assigned $P/N$ iterations, where $P$ is the total number of iterations and $N$ the number of threads. 
 Should $N$ not divide evenly into $P$, then the remainder $r$ is scattered across the first $r$ threads.
 The number of iterations each thread is to perform is stored in an array indexed by the thread identifier retrieved from \tp{OMP\_GET\_THREAD\_NUM}.
 Since this array must be shared in the parallel region, the synchronisation of, and access to, the array must be closely controlled.
 \tp{CRITICAL} sections or \tp{LOCK}s must be implemented to prevent race conditions and unintended overwrites.
-A discussion on this is given in Section \ref{s:locks}.
+A discussion on this is given later.
+If \tp{LOCK}s are used, another array is created that holds the lock from every thread, indexed by the thread identification number.
 
 Other shared variables, such as the number of threads, and the value of $P/N$, are also shared.
 By default, all other variables are scoped as \tp{PRIVATE} in all parallel regions.
@@ -260,6 +347,9 @@ When all threads have finished their local assignment, the loop has completed.
     \label{fig:affinityloop1}
 \end{figure}
 
+The results for Loop 1 using affinity scheduling are presented in Figure \ref{fig:affinityloop1}. 
+For the equivalent number of threads as the scheduling methods visited earlier (6), performance is superior.
+
 \begin{figure}
     \centering
     \includegraphics[width=.8\textwidth]{part2_plots/affinity_loop2}
@@ -267,22 +357,47 @@ When all threads have finished their local assignment, the loop has completed.
     \label{fig:affinityloop2}
 \end{figure}
 
+Again, this is to be expected. The initial, deterministic assignment of iterations to 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.8\textwidth]{part2_plots/speedup_affinity_loop1.png}
+    \caption{The ratio of execution time using $n$ threads to serial execution time for Loop 1; ...}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.8\textwidth]{part2_plots/speedup_affinity_loop2.png}
+    \caption{The ratio of execution time using $n$ threads to serial execution time for Loop 2; ...}
+\end{figure}
+
 
 \subsection*{\tp{CRITICAL} vs. \tp{LOCK}s}\label{s:locks}
 
-We may define two distinct types of self-scheduling -- where each thread is responsible for seeking more work -- algorithms: fixed, and variable.
-Where, in fixed systems, each processor will thread will perform a fixed amount of work whenever it sets to be idle, variable algorithms choose initially large amounts of work , but take increasingly small amounts of work as iterations progress.
-Self-scheduling algorithms, such as the \tp{STATIC} directive, can be inappropriate for low chunk-size loops, where the scheduling overhead can dominate execution times \citep{1701915}.
-Alternatively, where each processor takes $\frac{1}{N}$ of the loop iterations, where $N$ is the number of threads, the scheduling is unable to adjust to imbalances in work present in each portion of the loop.
+There are two methods of general synchronisation defined in the OpenMP standard: \tp{CRITICAL} and \tp{LOCK}s. 
+\tp{CRITICAL} may be thought of as protecting code sections: regions may only be entered by one thread at a time, and thus there is a significant synchronisation overhead whilst threads are waiting to enter the \tp{CRITICAL} region.
+\tp{LOCK}s act on data, and restrict access to certain parts of data when a thread `locks' or `unlocks' a portion of the data.
 
-Variable algorithms that take initially large amounts of work reduce the overhead required for scheduling \citep{Eager1992AdaptiveGS, Polychronopoulos:1987:GSP:40938.40941}.
-However, by taking small amounts of work towards the end of the loop, these algorithms may offer performance for imbalanced loops, since these small chunk sizes may smoothen the differences in work from the initial assignments.
 
-Another significant impact on loop performance is associated with memory caching; by ensuring that the same data is used repeatedly, the overheads of moving data from main memory to processor memory can be avoided.
+\begin{figure}
+    \centering
+    \includegraphics[width=.8\textwidth]{part2_plots/criticalvslock}
+    \caption{The change in execution time when using critical regions, as compared to locks; locks are found to be faster by approximately 10\%.}
+    \label{fig:criticalvslock}
+\end{figure}
 
-Our qualitative performance metrics are thus scheduling methods that allow data to be worked on in relatively large, contiguous chunks, and scheduling methods that reduce the total idling times for threads.
+Two versions of the affinity scheduling algorithms were implemented: one using critical regions, and another using locks.
+By doing so, the best-performing implementation could be selected for timing, and the impact on speed investigated.
 
-ahf`sdbjkzsbjgbjzsbfg
+The results of this investigation are presented in Figure \ref{fig:criticalvslock}. 
+It is found that, for Loop 1, the differences are negligible, and for Loop 2 the differences are up to 10\% in run time.
+This may suggest that the original \tp{CRITICAL} regions in Loop 1 were unlikely to hinder run time, implying that the amount of time threads spend doing work compared to assigning work, is low.
+
+Alternatively, for Loop 2, preventing threads from iterating at the start of a \tp{CRITICAL} region appears to be a large bottleneck in program execution.
+
+Such timings or profilings would need to be performed to ascertain the impact of either synchronisation structure on the program.
+In general, where \tp{CRITICAL} regions reduce performance, they are far easier to implement.
+For large code bases, it may be a trade-off between programming time and execution time.
 
 \bibliographystyle{plainnat}
 
