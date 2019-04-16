@@ -1,0 +1,235 @@
+CrayPat/X:  Version 6.4.6 Revision 7d0d87c  02/20/17 09:52:37
+
+Number of PEs (MPI ranks):    1
+                           
+Numbers of PEs per Node:      1
+                           
+Numbers of Threads per PE:    6
+                           
+Number of Cores per Socket:  12
+
+Execution start time:  Tue Apr 16 15:53:28 2019
+
+System name and speed:  mom5  2701 MHz (approx)
+
+Intel ivybridge CPU  Family:  6  Model: 62  Stepping:  4
+
+
+Current path to data file:
+  /work/y14/y14/jtyler/coursework/AFFINITY_PROF/loops+pat+26292-4351t.ap2  (RTS)
+
+
+Notes for table 1:
+
+  Table option:
+    -O load_balance_program
+  Options implied by table option:
+    -d ti%@0.95,ti,tr -b th
+
+  The Total value for Time, Calls is the value for the main thread only.
+    (If the main thread is atypical, try the option -s aggr_th=sum.)
+    (To specify different aggregations, see: pat_help report options s1)
+
+  This table shows only lines with Time% > 0.95.
+    (To set thresholds to zero, specify:  -T)
+
+  Percentages at each level are of the Total for the program.
+    (For percentages relative to next level up, specify:
+      -s percent=r[elative])
+
+Table 1:  Load Balance across PEs
+
+  Time% |     Time | Calls | Thread
+       
+ 100.0% | 0.677512 | 215.0 | Thread.0 value
+|------------------------------------------
+| 100.0% | 0.677512 | 215.0 | thread.0
+|  57.9% | 0.392269 | 202.0 | thread.1
+|  57.9% | 0.392119 | 202.0 | thread.2
+|  57.9% | 0.391971 | 202.0 | thread.4
+|  57.8% | 0.391733 | 202.0 | thread.3
+|  57.8% | 0.391499 | 202.0 | thread.5
+|==========================================
+
+Notes for table 2:
+
+  Table option:
+    -O load_balance_group
+  Options implied by table option:
+    -d ti%@0.95,ti,tr -b gr,th
+
+  The Total value for Time, Calls is the sum of the Group values.
+  The Group value for Time, Calls is the value for the main thread only.
+    (If the main thread is atypical, try the option -s aggr_th=sum.)
+    (To specify different aggregations, see: pat_help report options s1)
+
+  This table shows only lines with Time% > 0.95.
+    (To set thresholds to zero, specify:  -T)
+
+  Percentages at each level are of the Total for the program.
+    (For percentages relative to next level up, specify:
+      -s percent=r[elative])
+  
+  The following groups were pruned due to thresholding:
+    PTHREAD
+
+Table 2:  Load Balance across PEs by FunctionGroup
+
+  Time% |     Time | Calls | Group
+        |          |       |  Thread
+       
+ 100.0% | 0.677512 | 215.0 | Total
+|------------------------------------
+|  59.0% | 0.399645 | 203.0 | USER
+||-----------------------------------
+||  59.0% | 0.399645 | 203.0 | thread.0
+||  57.9% | 0.392269 | 202.0 | thread.1
+||  57.9% | 0.392119 | 202.0 | thread.2
+||  57.9% | 0.391971 | 202.0 | thread.4
+||  57.8% | 0.391733 | 202.0 | thread.3
+||  57.8% | 0.391499 | 202.0 | thread.5
+||===================================
+|  38.1% | 0.258125 |   5.0 | ETC
+||-----------------------------------
+||  38.1% | 0.258125 |   5.0 | thread.0
+||===================================
+|   2.9% | 0.019545 |   2.0 | OMP
+||-----------------------------------
+||   2.9% | 0.019545 |   2.0 | thread.0
+|====================================
+
+Notes for table 3:
+
+  Table option:
+    -O load_balance_function
+  Options implied by table option:
+    -d ti%@0.95,ti,tr -b gr,fu,th
+
+  The Total value for Time, Calls is the sum of the Group values.
+  The Group value for Time, Calls is the sum of the Function values.
+  The Function value for Time, Calls is the value for the main thread only.
+    (If the main thread is atypical, try the option -s aggr_th=sum.)
+    (To specify different aggregations, see: pat_help report options s1)
+
+  This table shows only lines with Time% > 0.95.
+    (To set thresholds to zero, specify:  -T)
+
+  Percentages at each level are of the Total for the program.
+    (For percentages relative to next level up, specify:
+      -s percent=r[elative])
+  
+  The following groups were pruned due to thresholding:
+    PTHREAD
+
+Table 3:  Load Balance across PEs by Function
+
+  Time% |     Time | Calls | Group
+        |          |       |  Function
+        |          |       |   Thread
+       
+ 100.0% | 0.677512 | 215.0 | Total
+|-----------------------------------------------------
+|  59.0% | 0.399645 | 203.0 | USER
+||----------------------------------------------------
+||  59.0% | 0.399645 | 203.0 | loops_
+|||---------------------------------------------------
+3||  59.0% | 0.399645 | 203.0 | thread.0
+3||  57.9% | 0.392269 | 202.0 | thread.1
+3||  57.9% | 0.392119 | 202.0 | thread.2
+3||  57.9% | 0.391971 | 202.0 | thread.4
+3||  57.8% | 0.391733 | 202.0 | thread.3
+3||  57.8% | 0.391499 | 202.0 | thread.5
+|||===================================================
+||====================================================
+|  38.1% | 0.258125 |   5.0 | ETC
+||----------------------------------------------------
+||  38.1% | 0.258118 |   1.0 | _aio_delete_cilist
+3|        |          |       |  thread.0
+||====================================================
+|   2.9% | 0.019545 |   2.0 | OMP
+||----------------------------------------------------
+||   2.9% | 0.019542 |   1.0 | loops_.REGION@li.57(ovhd)
+3|        |          |       |  thread.0
+|=====================================================
+
+========================  Additional details  ========================
+
+Experiment:  trace
+
+Original path to data file:
+  /fs4/y14/y14/jtyler/coursework/AFFINITY_PROF/loops+pat+26292-4351t.xf  (RTS)
+
+Original program:  /fs4/y14/y14/jtyler/coursework/loops
+
+Instrumented with:  pat_build -g omp loops
+
+Instrumented program:  ../loops+pat
+
+Program invocation:  ../loops+pat 6
+
+Exit Status:  0 for 1 PE
+
+Thread start functions and creator functions:
+     1 thread:  __pat_jmp_write_record
+     5 threads:  _thread_pool_slave_entry(void*) <- _cray$mt_start_two_code_parallel
+
+Memory pagesize:  4 KiB
+
+Memory hugepagesize:  Not Available
+
+Programming environment:  CRAY
+
+Runtime environment variables:
+  ATP_HOME=/opt/cray/atp/2.1.0
+  ATP_IGNORE_SIGTERM=1
+  ATP_MRNET_COMM_PATH=/opt/cray/atp/2.1.0/libexec/atp_mrnet_commnode_wrapper
+  ATP_POST_LINK_OPTS=-Wl,-L/opt/cray/atp/2.1.0/libApp/ 
+  CRAYOS_VERSION=5.2.82
+  CRAYPE_VERSION=2.5.10
+  CRAY_BINUTILS_VERSION=/opt/cray/cce/8.5.8
+  CRAY_CC_VERSION=8.5.8
+  CRAY_FTN_VERSION=8.5.8
+  CRAY_LIBSCI_VERSION=16.11.1
+  LIBSCI_VERSION=16.11.1
+  MODULE_VERSION=3.2.10.6
+  MODULE_VERSION_STACK=3.2.10.6
+  MPICH_ABORT_ON_ERROR=1
+  MPICH_DIR=/opt/cray/mpt/7.5.5/gni/mpich-cray/8.4
+  OMP_NUM_THREADS=6
+  PATH=/home/y07/y07/cse/xalt/0.6.0/libexec:/home/y07/y07/cse/xalt/0.6.0/bin:/opt/cray/mpt/7.5.5/gni/bin:/opt/pbs/12.2.401.141761/bin:/opt/cray/rca/1.0.0-2.0502.60530.1.62.ari/bin:/opt/cray/craype/2.5.10/bin:/opt/cray/cce/8.5.8/cray-binutils/x86_64-pc-linux-gnu/bin:/opt/cray/cce/8.5.8/craylibs/x86-64/bin:/opt/cray/cce/8.5.8/cftn/bin:/opt/cray/cce/8.5.8/CC/bin:/opt/cray/llm/default/bin:/opt/cray/llm/default/etc:/opt/cray/xpmem/0.1-2.0502.64982.7.26.ari/bin:/opt/cray/ugni/6.0-1.0502.10863.8.29.ari/bin:/opt/cray/udreg/2.3.2-1.0502.10518.2.17.ari/bin:/opt/cray/lustre-cray_ari_s/2.5_3.0.101_0.46.1_1.0502.8871.43.1-1.0502.21728.74.6/sbin:/opt/cray/lustre-cray_ari_s/2.5_3.0.101_0.46.1_1.0502.8871.43.1-1.0502.21728.74.6/bin:/opt/cray/alps/5.2.5-2.0502.9955.44.1.ari/sbin:/opt/cray/alps/5.2.5-2.0502.9955.44.1.ari/bin:/opt/cray/sdb/1.1-1.0502.63652.4.25.ari/bin:/opt/cray/nodestat/2.2-1.0502.60539.1.31.ari/bin:/opt/modules/3.2.10.6/bin:/usr/local/bin:/usr/bin:/bin:/usr/bin/X11:/usr/X11R6/bin:/usr/games:/usr/lib/mit/bin:/usr/lib/mit/sbin:.:/usr/lib/qt3/bin:/opt/cray/bin
+  PMI_FORK_RANK=0
+  PMI_GNI_COOKIE=1541144576:1541210112
+  PMI_GNI_DEV_ID=0:0
+  PMI_GNI_LOC_ADDR=5759:5759
+  PMI_GNI_PTAG=16:17
+  XTOS_VERSION=5.2.82
+
+Report time environment variables:
+    CRAYPAT_ROOT=/opt/cray/perftools/6.4.6
+    PAT_REPORT_KEEP_AP2=TRUE
+    PAT_REPORT_PRUNE_NAME=_cray$mt_start_,__cray_hwpc_,f_cray_hwpc_,cstart,__pat_,pat_region_,PAT_,OMP.slave_loop,slave_entry,_new_slave_entry,THREAD_POOL_join,__libc_start_main,_start,__start,start_thread,__wrap_,UPC_ADIO_,_upc_,upc_,__caf_,__pgas_,syscall
+
+Number of MPI control variables collected:  104
+
+  (To see the list, specify: -s mpi_cvar=show)
+
+Report command line options:  -O load_balance
+
+Operating system:
+  Linux 3.0.101-0.46.1_1.0502.8871-cray_ari_c #1 SMP Mon Oct 8 17:27:42 UTC 2018
+
+Instrumentation overhead could not be estimated.
+
+Number of traced functions:  42
+
+  (To see the list, specify:  -s traced_functions=show)
+
+
+=============================  Warnings  =============================
+
+OpenMP regions included 1 region with no end address, and
+3 regions with an invalid address range, and they were ignored.
+
+An exit() call or a STOP statement can cause missing end addresses.
+Invalid address ranges indicate a problem with data collection.
+
