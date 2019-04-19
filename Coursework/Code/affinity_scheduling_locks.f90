@@ -30,23 +30,27 @@ program loops
 
     implicit none
 
-    integer, parameter        :: N    = 729                                                             ! Array size
-    integer, parameter        :: reps = 100                                                             ! Number of repetitions of loop1()
+    integer, parameter              :: N    = 729                                                       ! Array size
+    integer, parameter              :: reps = 100                                                       ! Number of repetitions of loop1()
 
-    integer                   :: jmax(N)                                                                ! Array to bias load balancing in loop2()
-    integer                   :: r                                                                      ! Loop counter
-    integer                   :: nthreads                                                               ! Number of threads to set
+    integer                         :: jmax(N)                                                          ! Array to bias load balancing in loop2()
+    integer                         :: r                                                                ! Loop counter
+    integer                         :: nthreads                                                         ! Number of threads to set
 
-    character(len=4)          :: buf                                                                    ! Character buffer to read-in command-line argument
+    ! integer(kind=8), allocatable    :: lock_array(:)                                                    ! Array that records locks to data in the iterations array; defined here to as to be used
+                                                                                                        ! in both scheduling routines. We use 8-byte integers since we're storing addresses, which
+                                                                                                        ! can be quite lengthy
 
-    real(kind=8), allocatable :: a(:,:)                                                                 ! Data array for use in loop1()
-    real(kind=8), allocatable :: b(:,:)                                                                 ! Data array for use in loop2()
-    real(kind=8), allocatable :: c(:)                                                                   ! Data array for use in loop3()
+    character(len=4)                :: buf                                                              ! Character buffer to read-in command-line argument
+
+    real(kind=8), allocatable       :: a(:,:)                                                           ! Data array for use in loop1()
+    real(kind=8), allocatable       :: b(:,:)                                                           ! Data array for use in loop2()
+    real(kind=8), allocatable       :: c(:)                                                             ! Data array for use in loop3()
     
-    real(kind=8)              :: start1                                                                 ! Start time for loop1()
-    real(kind=8)              :: start2                                                                 ! Start time for loop2()
-    real(kind=8)              :: end1                                                                   ! End time for loop1()
-    real(kind=8)              :: end2                                                                   ! End time for loop2()
+    real(kind=8)                    :: start1                                                           ! Start time for loop1()
+    real(kind=8)                    :: start2                                                           ! Start time for loop2()
+    real(kind=8)                    :: end1                                                             ! End time for loop1()
+    real(kind=8)                    :: end2                                                             ! End time for loop2()
 
 
     ! Allocate work arrays; avoids array declaration problems with non-constant integers
@@ -63,6 +67,22 @@ program loops
     call OMP_SET_NUM_THREADS(nthreads)                                                                  ! Set the number of threads
 
     !
+    ! Lock initialisation
+    !
+
+    ! Allocate our lock array, now we know the number of threads
+
+    ! allocate(lock_array(nthreads))
+
+    ! Initialise our locks
+
+    ! do r = 1, nthreads 
+
+    !     call OMP_INIT_LOCK(lock_array(r))
+
+    ! end do
+
+    !
     ! Loop 1
     !
 
@@ -70,11 +90,17 @@ program loops
 
     start1 = omp_get_wtime()
 
+    write(*,*) "Before loop 1"
+
     do r = 1, reps
 
         call run_loop1()
     
     end do
+
+
+    write(*,*) "After loop 1"
+
 
     end1  = omp_get_wtime()  
 
@@ -88,6 +114,10 @@ program loops
 
     call init2()  
 
+
+    write(*,*) "Before loop 2"
+
+
     start2 = omp_get_wtime()
     do r = 1, reps
     
@@ -95,11 +125,25 @@ program loops
     
     end do
 
+
+    write(*,*) "After loop 2"
+
+
     end2  = omp_get_wtime()  
 
     call valid2() 
 
     print *, "Total time for ",reps," reps of loop 2 = ", end2-start2
+
+    !
+    ! Destroy our locks - good practice
+    !
+
+    ! do r = 1, nthreads 
+
+    !     call OMP_DESTROY_LOCK(lock_array(r))
+
+    ! end do
 
 contains 
 
@@ -182,6 +226,10 @@ subroutine run_loop1()
     integer             :: most_work                                                                    ! Holds the thread ID of the thread with the most work left
     integer             :: remaining_iters 
     integer             :: chunk_size
+
+    integer             :: i
+
+    integer(kind=OMP_LOCK_KIND)     :: lock_array(nthreads)
     
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
@@ -194,18 +242,22 @@ subroutine run_loop1()
     !
 
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
-    default_chunk = ceiling(dble(N * p_quotient))                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
+    default_chunk = ceiling(dble(N * p_quotient)) + 1                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
+
+    do i = 1,nthreads
+
+        call OMP_INIT_LOCK(lock_array(i))
+
+    end do
 
     !
     ! Enter the parallel region
     !
 
-    !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(num_iters, ITER_RANGE, DEFAULT_CHUNK), &
+    !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(NUM_ITERS, ITER_RANGE, DEFAULT_CHUNK, LOCK_ARRAY), &
     !$OMP FIRSTPRIVATE(p_quotient)
 
     thread_id = OMP_GET_THREAD_NUM()                                                                    ! Get the thread ID for this process; this parameterises the work-loading
-
-    print *, "Here, 1"
 
     num_iters(thread_id + 1) = min(N - default_chunk * thread_id, default_chunk)                        ! Compute the number of iterations this thread will perform: either the default chunk, or one less
                                                                                                         ! (distributes remaining work evenly, except the last thread) 
@@ -224,7 +276,7 @@ subroutine run_loop1()
         ! other threads know that it has 'taken' 1/p iterations from the set to perform by updating
         ! num_iters.
         !
-        ! We'll use CRITICAL directives to avoid race conditions on num_iters: this isn't a problem 
+        ! We'll use LOCK directives to avoid race conditions on num_iters: this isn't a problem 
         ! here in these lines, but when threads begin to steal from one another, we could see an 
         ! unintended overwrite. We could also implement this using locks, and this is something to
         ! look at when profiling. By not supplying a name, we can make sure neither this
@@ -235,7 +287,9 @@ subroutine run_loop1()
         ! for such a small increase in 'prettiness', the practicality impact isn't worth it.
         !
 
-        !$OMP CRITICAL
+        ! Set the lock to reserve this data array
+
+        call OMP_SET_LOCK(lock_array(thread_id + 1))
 
         remaining_iters          = num_iters(thread_id + 1)                                             ! Set the number of iterations reamining for this thread
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
@@ -243,7 +297,9 @@ subroutine run_loop1()
                                                                                                         ! that we are going to go ahead and do this work.
         lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
-        !$OMP END CRITICAL
+        ! Now, unlock the array
+
+        call OMP_UNSET_LOCK(lock_array(thread_id + 1))
 
         ! Back in the parallel region; compute this chunk    
 
@@ -267,14 +323,12 @@ subroutine run_loop1()
     do while (sum(num_iters) .ne. 0)                                                                    ! Every thread should keep going while there are iterations left to do
 
         !
-        ! We don't want two threads to steal the same bit of work, so enclose this in a critical.
+        ! We don't want two threads to steal the same bit of work, so enclose this in a lock.
         ! Going to cost us performance, but we can profile after to see how much.
         !
 
-        !$OMP CRITICAL
-        
         ! Let's first find where the largest amount of work is
-
+        
         most_work = maxloc(num_iters, 1)                                                                ! Get the location of the maximum amount of work (along axis=1)
 
         !
@@ -285,6 +339,10 @@ subroutine run_loop1()
         !
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.
         !
+        
+        ! Set our lock
+
+        call OMP_SET_LOCK(lock_array(most_work))
 
         remaining_iters         = num_iters(most_work)                                                  ! Get the number of iterations remaining on the most loaded thread
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
@@ -292,15 +350,21 @@ subroutine run_loop1()
                                                                                                         ! has picked up some of the slack
         lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
 
-        ! End the critical region; we can go back to parallel now we've updated the shared arrays
+        ! And now unset the lock now we've updated the shared arrays
 
-        !$OMP END CRITICAL
+        call OMP_UNSET_LOCK(lock_array(most_work))
 
         call loop1_chunk(lower_counter, lower_counter + chunk_size)                                     ! Compute the other thread's work; since the arrays are shared, no need to play
                                                                                                         ! with reductions.
 
     end do
     !$OMP END PARALLEL
+
+    do i = 1, nthreads
+
+        call OMP_DESTROY_LOCK(lock_array(i))
+
+    end do
 
 end subroutine run_loop1
  
@@ -335,16 +399,13 @@ end subroutine loop1_chunk
 subroutine run_loop2()
     
     !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 2.
+    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 1.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
     !
     ! This aims to optimise performance for parallel loops within sequential loops, and prioritises
     ! doing work where the cache already holds the required data.
-    !
-    ! This is essentially a copy-and-paste from loop 1, with only the function calls changed. This has
-    ! been done to prevent branching points (saves speed), and also to aid marking.
     !
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
@@ -357,6 +418,10 @@ subroutine run_loop2()
     integer             :: remaining_iters 
     integer             :: chunk_size
     
+    integer(kind=OMP_LOCK_KIND)     :: lock_array(nthreads)
+    
+    integer :: i
+
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
     !
@@ -370,11 +435,21 @@ subroutine run_loop2()
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
     default_chunk = ceiling(dble(N * p_quotient)) + 1                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
 
+    ! write(*,*) "here"
+
+    do i = 1,nthreads
+
+        call OMP_INIT_LOCK(lock_array(i))
+
+    end do
+
+    ! write(*,*) "here"
+
     !
     ! Enter the parallel region
     !
 
-    !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(num_iters, ITER_RANGE, DEFAULT_CHUNK), &
+    !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(num_iters, ITER_RANGE, DEFAULT_CHUNK, LOCK_ARRAY), &
     !$OMP FIRSTPRIVATE(p_quotient)
 
     thread_id = OMP_GET_THREAD_NUM()                                                                    ! Get the thread ID for this process; this parameterises the work-loading
@@ -388,6 +463,8 @@ subroutine run_loop2()
     !
     ! Enter the main work loop; labelled so that we may exit this loop easily when the work is done.
     !
+
+    ! write(*,*) "here"
 
     initloop: do                                                                                        ! The loop that *every* thread must do initially; labelled for exit statement and clarity.
 
@@ -407,7 +484,7 @@ subroutine run_loop2()
         ! for such a small increase in 'prettiness', the practicality impact isn't worth it.
         !
 
-        !$OMP CRITICAL(main)
+        call OMP_SET_LOCK(lock_array(thread_id + 1))
 
         remaining_iters          = num_iters(thread_id + 1)                                             ! Set the number of iterations reamining for this thread
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
@@ -415,7 +492,7 @@ subroutine run_loop2()
                                                                                                         ! that we are going to go ahead and do this work.
         lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
-        !$OMP END CRITICAL(main)
+        call OMP_UNSET_LOCK(lock_array(thread_id + 1))
 
         ! Back in the parallel region; compute this chunk    
 
@@ -439,12 +516,10 @@ subroutine run_loop2()
     do while (sum(num_iters) .ne. 0)                                                                    ! Every thread should keep going while there are iterations left to do
 
         !
-        ! We don't want two threads to steal the same bit of work, so enclose this in a critical.
+        ! We don't want two threads to steal the same bit of work, so enclose this in a lock.
         ! Going to cost us performance, but we can profile after to see how much.
         !
 
-        !$OMP CRITICAL(main)
-        
         ! Let's first find where the largest amount of work is
         
         most_work = maxloc(num_iters, 1)                                                                ! Get the location of the maximum amount of work (along axis=1)
@@ -458,15 +533,17 @@ subroutine run_loop2()
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.
         !
 
+        call OMP_SET_LOCK(lock_array(most_work))
+
         remaining_iters         = num_iters(most_work)                                                  ! Get the number of iterations remaining on the most loaded thread
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
         num_iters(most_work)    = remaining_iters - chunk_size                                          ! Update the number of iterations for the most loaded thread now *this* thread
                                                                                                         ! has picked up some of the slack
         lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
 
-        ! End the critical region; we can go back to parallel now we've updated the shared arrays
+        ! End the locking; we can go back to parallel now we've updated the shared arrays
 
-        !$OMP END CRITICAL(main)
+        call OMP_UNSET_LOCK(lock_array(most_work))
 
         call loop2_chunk(lower_counter, lower_counter + chunk_size)                                     ! Compute the other thread's work; since the arrays are shared, no need to play
                                                                                                         ! with reductions.
@@ -474,13 +551,19 @@ subroutine run_loop2()
     end do
     !$OMP END PARALLEL
 
+    do i = 1, nthreads
+
+        call OMP_DESTROY_LOCK(lock_array(i))
+
+    end do
+
 end subroutine run_loop2
 
 
-subroutine loop2_chunk(low_bound, high_bound) 
-
+subroutine loop2_chunk(low_bound, high_bound)
+    
     !
-    ! Performs a subset of the total iterations of loop2, from low_bound to high_bound.
+    ! Performs a subset of the total iterations of loop 2, from low_bound to high_bound.
     ! 
     ! Allows threads to independently execute different parts of the loop.
     !
