@@ -21,7 +21,6 @@
 ! ~~~~~~~~~
 ! - 10/4/19: File creation
 ! - 11/4/19: Fixes sentinel overlaps in run_loop2()
-! - 12/4/19: **Changes synchronisation from CRITICAL to LOCKs for speed**
 !
 
 program loops 
@@ -174,8 +173,7 @@ subroutine run_loop1()
     !
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
-    integer             :: iter_range(nthreads, 2)                                                      ! Values of the loop-counter for which a thread is to execute
-                                                                                                        ! Col 1: low; Col 2: high
+    integer             :: iter_range(nthreads)                                                         ! Upper bounds of the loop-counter for which a thread is to execute
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
     integer             :: lower_counter                                                                ! Holds lower bound for chunking
@@ -194,7 +192,7 @@ subroutine run_loop1()
     !
 
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
-    default_chunk = ceiling(dble(N * p_quotient))                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
+    default_chunk = ceiling(dble(N * p_quotient))                                                       ! Compute the *nominal* (+remainder) amount of work per thread. 
 
     !
     ! Enter the parallel region
@@ -205,12 +203,9 @@ subroutine run_loop1()
 
     thread_id = OMP_GET_THREAD_NUM()                                                                    ! Get the thread ID for this process; this parameterises the work-loading
 
-    print *, "Here, 1"
-
     num_iters(thread_id + 1) = min(N - default_chunk * thread_id, default_chunk)                        ! Compute the number of iterations this thread will perform: either the default chunk, or one less
                                                                                                         ! (distributes remaining work evenly, except the last thread) 
-    iter_range(thread_id+1, 1) = thread_id * default_chunk                                              ! The lower bound of loop iteration values this thread will perform: note thread_id counts from 0
-    iter_range(thread_id+1, 2) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)           ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
+    iter_range(thread_id + 1) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)            ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
                                                                                                         ! (prevents the remainder ceiling in default chunk giving a segfault)
 
     !
@@ -226,8 +221,7 @@ subroutine run_loop1()
         !
         ! We'll use CRITICAL directives to avoid race conditions on num_iters: this isn't a problem 
         ! here in these lines, but when threads begin to steal from one another, we could see an 
-        ! unintended overwrite. We could also implement this using locks, and this is something to
-        ! look at when profiling. By not supplying a name, we can make sure neither this
+        ! unintended overwrite. By not supplying a name, we can make sure neither this
         ! NOR the one later in the code can be entered at the same time.
         !
         ! We could 'pretty' this up by including it in a subroutine call, but that would involve
@@ -241,7 +235,7 @@ subroutine run_loop1()
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
         num_iters(thread_id + 1) = remaining_iters - chunk_size                                         ! Update the number of iterations; we are telling the other threads
                                                                                                         ! that we are going to go ahead and do this work.
-        lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
+        lower_counter            = iter_range(thread_id + 1) - remaining_iters                          ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
         !$OMP END CRITICAL
 
@@ -251,7 +245,7 @@ subroutine run_loop1()
 
         ! Any work left to do for this thread?
 
-        if (num_iters(thread_id+1) .eq. 0) then
+        if (num_iters(thread_id + 1) .eq. 0) then
 
             exit initloop                                                                               ! If not, we're done with this thread's local set; so leave this loop and go steal some work instead
 
@@ -290,7 +284,7 @@ subroutine run_loop1()
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
         num_iters(most_work)    = remaining_iters - chunk_size                                          ! Update the number of iterations for the most loaded thread now *this* thread
                                                                                                         ! has picked up some of the slack
-        lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
+        lower_counter           = iter_range(most_work) - remaining_iters                               ! And compute the lower loop iterations for our new threads.
 
         ! End the critical region; we can go back to parallel now we've updated the shared arrays
 
@@ -319,7 +313,7 @@ subroutine loop1_chunk(low_bound, high_bound)
     integer             :: i 
     integer             :: j
 
-    do i = low_bound+1, high_bound 
+    do i = low_bound + 1, high_bound 
 
         do j = N, i, -1
 
@@ -348,7 +342,7 @@ subroutine run_loop2()
     !
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
-    integer             :: iter_range(nthreads, 2)                                                      ! Values of the loop-counter for which a thread is to execute
+    integer             :: iter_range(nthreads)                                                         ! Values of the loop-counter for which a thread is to execute
                                                                                                         ! Col 1: low; Col 2: high
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
@@ -381,8 +375,7 @@ subroutine run_loop2()
 
     num_iters(thread_id + 1) = min(N - default_chunk * thread_id, default_chunk)                        ! Compute the number of iterations this thread will perform: either the default chunk, or one less
                                                                                                         ! (distributes remaining work evenly, except the last thread) 
-    iter_range(thread_id+1, 1) = thread_id * default_chunk                                              ! The lower bound of loop iteration values this thread will perform: note thread_id counts from 0
-    iter_range(thread_id+1, 2) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)           ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
+    iter_range(thread_id + 1) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)            ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
                                                                                                         ! (prevents the remainder ceiling in default chunk giving a segfault)
 
     !
@@ -413,7 +406,7 @@ subroutine run_loop2()
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
         num_iters(thread_id + 1) = remaining_iters - chunk_size                                         ! Update the number of iterations; we are telling the other threads
                                                                                                         ! that we are going to go ahead and do this work.
-        lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
+        lower_counter            = iter_range(thread_id + 1) - remaining_iters                          ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
         !$OMP END CRITICAL(main)
 
@@ -423,7 +416,7 @@ subroutine run_loop2()
 
         ! Any work left to do for this thread?
 
-        if (num_iters(thread_id+1) .eq. 0) then
+        if (num_iters(thread_id + 1) .eq. 0) then
 
             exit initloop                                                                               ! If not, we're done with this thread's local set; so leave this loop and go steal some work instead
 
@@ -462,7 +455,7 @@ subroutine run_loop2()
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
         num_iters(most_work)    = remaining_iters - chunk_size                                          ! Update the number of iterations for the most loaded thread now *this* thread
                                                                                                         ! has picked up some of the slack
-        lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
+        lower_counter           = iter_range(most_work) - remaining_iters                               ! And compute the lower loop iterations for our new threads.
 
         ! End the critical region; we can go back to parallel now we've updated the shared arrays
 

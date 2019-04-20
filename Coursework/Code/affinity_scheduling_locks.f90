@@ -218,18 +218,19 @@ subroutine run_loop1()
     !
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
-    integer             :: iter_range(nthreads, 2)                                                      ! Values of the loop-counter for which a thread is to execute
+    integer             :: iter_range(nthreads)                                                         ! Values of the loop-counter for which a thread is to execute
                                                                                                         ! Col 1: low; Col 2: high
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
     integer             :: lower_counter                                                                ! Holds lower bound for chunking
     integer             :: most_work                                                                    ! Holds the thread ID of the thread with the most work left
-    integer             :: remaining_iters 
-    integer             :: chunk_size
+    integer             :: remaining_iters                                                              ! Remaining iterations for each thread (scoped private)
+    integer             :: chunk_size                                                                   ! Number of iterations taken by each thread (scoped private)
 
-    integer             :: i
+    integer             :: i                                                                            ! Loop variable
 
-    integer(kind=OMP_LOCK_KIND)     :: lock_array(nthreads)
+    integer(kind=&
+    OMP_LOCK_KIND)      :: lock_array(nthreads)                                                         ! Initialise an array of locking integers to handle our synchronisation
     
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
@@ -261,8 +262,7 @@ subroutine run_loop1()
 
     num_iters(thread_id + 1) = min(N - default_chunk * thread_id, default_chunk)                        ! Compute the number of iterations this thread will perform: either the default chunk, or one less
                                                                                                         ! (distributes remaining work evenly, except the last thread) 
-    iter_range(thread_id+1, 1) = thread_id * default_chunk                                              ! The lower bound of loop iteration values this thread will perform: note thread_id counts from 0
-    iter_range(thread_id+1, 2) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)           ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
+    iter_range(thread_id + 1) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)            ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
                                                                                                         ! (prevents the remainder ceiling in default chunk giving a segfault)
 
     !
@@ -287,7 +287,7 @@ subroutine run_loop1()
         ! for such a small increase in 'prettiness', the practicality impact isn't worth it.
         !
 
-        ! Set the lock to reserve this data array
+        ! Set the lock to reserve this part of the data array
 
         call OMP_SET_LOCK(lock_array(thread_id + 1))
 
@@ -295,7 +295,7 @@ subroutine run_loop1()
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
         num_iters(thread_id + 1) = remaining_iters - chunk_size                                         ! Update the number of iterations; we are telling the other threads
                                                                                                         ! that we are going to go ahead and do this work.
-        lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
+        lower_counter            = iter_range(thread_id + 1) - remaining_iters                          ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
         ! Now, unlock the array
 
@@ -348,7 +348,7 @@ subroutine run_loop1()
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
         num_iters(most_work)    = remaining_iters - chunk_size                                          ! Update the number of iterations for the most loaded thread now *this* thread
                                                                                                         ! has picked up some of the slack
-        lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
+        lower_counter           = iter_range(most_work) - remaining_iters                               ! And compute the lower loop iterations for our new threads.
 
         ! And now unset the lock now we've updated the shared arrays
 
@@ -359,6 +359,11 @@ subroutine run_loop1()
 
     end do
     !$OMP END PARALLEL
+
+    !
+    ! It's best practice to destroy all our locks when we're done; this is quite time consuming,
+    ! but it's part of implementing locks.
+    !
 
     do i = 1, nthreads
 
@@ -409,7 +414,7 @@ subroutine run_loop2()
     !
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
-    integer             :: iter_range(nthreads, 2)                                                      ! Values of the loop-counter for which a thread is to execute
+    integer             :: iter_range(nthreads)                                                         ! Values of the loop-counter for which a thread is to execute
                                                                                                         ! Col 1: low; Col 2: high
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
@@ -418,10 +423,11 @@ subroutine run_loop2()
     integer             :: remaining_iters 
     integer             :: chunk_size
     
-    integer(kind=OMP_LOCK_KIND)     :: lock_array(nthreads)
-    
-    integer :: i
+    integer(kind=&
+    OMP_LOCK_KIND)      :: lock_array(nthreads)
 
+    integer             :: i                                                                            ! Loop variable
+    
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
     !
@@ -435,15 +441,11 @@ subroutine run_loop2()
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
     default_chunk = ceiling(dble(N * p_quotient)) + 1                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
 
-    ! write(*,*) "here"
-
     do i = 1,nthreads
 
         call OMP_INIT_LOCK(lock_array(i))
 
     end do
-
-    ! write(*,*) "here"
 
     !
     ! Enter the parallel region
@@ -456,15 +458,13 @@ subroutine run_loop2()
 
     num_iters(thread_id + 1) = min(N - default_chunk * thread_id, default_chunk)                        ! Compute the number of iterations this thread will perform: either the default chunk, or one less
                                                                                                         ! (distributes remaining work evenly, except the last thread) 
-    iter_range(thread_id+1, 1) = thread_id * default_chunk                                              ! The lower bound of loop iteration values this thread will perform: note thread_id counts from 0
-    iter_range(thread_id+1, 2) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)           ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
+    iter_range(thread_id + 1) = thread_id * default_chunk                                               ! The lower bound of loop iteration values this thread will perform: note thread_id counts from 0
+    iter_range(thread_id + 1) = min(default_chunk * thread_id + num_iters(thread_id + 1), N)            ! The upper bound of loop iteration values: either multiple of default chunk, OR N, whichever is lower
                                                                                                         ! (prevents the remainder ceiling in default chunk giving a segfault)
 
     !
     ! Enter the main work loop; labelled so that we may exit this loop easily when the work is done.
     !
-
-    ! write(*,*) "here"
 
     initloop: do                                                                                        ! The loop that *every* thread must do initially; labelled for exit statement and clarity.
 
@@ -473,10 +473,9 @@ subroutine run_loop2()
         ! other threads know that it has 'taken' 1/p iterations from the set to perform by updating
         ! num_iters.
         !
-        ! We'll use CRITICAL directives to avoid race conditions on num_iters: this isn't a problem 
+        ! We'll use locks to avoid race conditions on num_iters: this isn't a problem 
         ! here in these lines, but when threads begin to steal from one another, we could see an 
-        ! unintended overwrite. We could also implement this using locks, and this is something to
-        ! look at when profiling. By not supplying a name, we can make sure neither this
+        ! unintended overwrite. By not supplying a name, we can make sure neither this
         ! NOR the one later in the code can be entered at the same time.
         !
         ! We could 'pretty' this up by including it in a subroutine call, but that would involve
@@ -490,7 +489,7 @@ subroutine run_loop2()
         chunk_size               = ceiling(dble(remaining_iters * p_quotient))                          ! Compute the chunk size; that is, 1/p * number of iterations.
         num_iters(thread_id + 1) = remaining_iters - chunk_size                                         ! Update the number of iterations; we are telling the other threads
                                                                                                         ! that we are going to go ahead and do this work.
-        lower_counter            = iter_range(thread_id + 1, 2) - remaining_iters                       ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
+        lower_counter            = iter_range(thread_id + 1) - remaining_iters                          ! Compute the lower bound for work; this 'moves up' as more iterations are completed.
 
         call OMP_UNSET_LOCK(lock_array(thread_id + 1))
 
@@ -539,7 +538,7 @@ subroutine run_loop2()
         chunk_size              = ceiling(dble(remaining_iters * p_quotient))                           ! Get the chunk size of the most loaded thread
         num_iters(most_work)    = remaining_iters - chunk_size                                          ! Update the number of iterations for the most loaded thread now *this* thread
                                                                                                         ! has picked up some of the slack
-        lower_counter           = iter_range(most_work, 2) - remaining_iters                            ! And compute the lower loop iterations for our new threads.
+        lower_counter           = iter_range(most_work) - remaining_iters                               ! And compute the lower loop iterations for our new threads.
 
         ! End the locking; we can go back to parallel now we've updated the shared arrays
 
@@ -550,6 +549,11 @@ subroutine run_loop2()
 
     end do
     !$OMP END PARALLEL
+
+    !
+    ! It's best practice to destroy all our locks when we're done; this is quite time consuming,
+    ! but it's part of implementing locks.
+    !
 
     do i = 1, nthreads
 
