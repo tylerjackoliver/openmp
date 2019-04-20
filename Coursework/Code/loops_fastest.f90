@@ -28,17 +28,23 @@ program loops
   
   real(kind=8)              :: start1, start2, end1, end2
 
-  ! If allocatable arrays are immediately set and not changed, then there is no point in using
-  ! allocatable arrays, and only causes issues with the hidden pointers. This has been left
-  ! as-is because of the coursework assignment.
+
+  ! Allocate work arrays; avoids array declaration problems with non-constant integers
 
   allocate(a(N, N), b(N, N), c(N))  
 
-  call get_command_argument(1, buf)
+  ! To make job submission easier, this program takes a command line argument
+  ! to set the number of threads
 
-  read(buf, '(I2)') nthreads
+  call get_command_argument(1, buf)                                                                   ! Get the first command-line argument; store as character in buf
 
-  call OMP_SET_NUM_THREADS(nthreads)
+  read(buf, '(I2)') nthreads                                                                          ! Fortran character -> integer conversion
+
+  call OMP_SET_NUM_THREADS(nthreads)                                                                  ! Set the number of threads
+
+  !
+  ! Loop 1
+  !
 
   call init1()  
 
@@ -50,15 +56,15 @@ program loops
   
   end do
 
-  call OMP_GET_SCHEDULE(sched_kind, chunksize)
-
-  write(*,*) sched_kind
-
   end1  = omp_get_wtime()  
 
   call valid1() 
 
   print *, "Total time for ",reps," reps of loop 1 = ", end1-start1 
+
+  !
+  ! Loop 2
+  !
 
   call init2()  
 
@@ -181,10 +187,10 @@ subroutine loop2()
 ! that allows this to be used.
 !
 ! To fulfil the Coursework requirements, the quickest scheduling *for 6 threads on ARCHER*
-! is SCHEDULE(GUIDED, 8).
+! is SCHEDULE(DYNAMIC, 8).
 !
 
-  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(JMAX, RN2, B, C) SCHEDULE(GUIDED, 8)
+  !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(JMAX, RN2, B, C) SCHEDULE(DYNAMIC, 8)
   do i = 1,N
 
      do j = 1, jmax(i) 
@@ -198,7 +204,7 @@ subroutine loop2()
     end do
   
   end do
-!  !$OMP END PARALLEL DO
+  !$OMP END PARALLEL DO
 
 end subroutine loop2
 
