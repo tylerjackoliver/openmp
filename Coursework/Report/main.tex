@@ -345,7 +345,7 @@ Owing to the variable scoping in the internal procedures in Fortran, the shared 
 \begin{figure}
     \centering
     \includegraphics[height=.3\textheight]{part2_plots/affinity_loop1}
-    \caption{Execution times for Loop 1, scheduled using the static partitioned affinity scheduling algorithm. We obtain better performance as we increase the number of threads, until the array chunks no longer fit in the processor cache.}
+    \caption{Execution times for Loop 1, scheduled using the static partitioned affinity scheduling algorithm. We obtain better performance as we increase the number of threads, until the array chunks no longer fit in the processor cache and synchronisation overheads begin to dominate.}
     \label{fig:affinityloop1}
 \end{figure}
 
@@ -457,7 +457,7 @@ In particular, the profiling was performed separate to the main set of runs.
 Also, traditional scientific codes typically use double-precision \tp{REAL}s, where these loops use single-precision \tp{REAL}s.
 Representing numbers in double-precision incurs a performance overhead:
 When using the \tp{-s real64} flag with the Cray Fortran compiler on ARCHER, the loop execution times increase by approximately 10\textsuperscript{-3}.
-Given that execution times are on the order of 10\textsuperscript{-2}, this difference may be significant.
+Given that execution times are on the order of 10\textsuperscript{-2}, this difference may be significant, and could potentially affect the performance of different scheduling routines.
 
 The best scheduling algorithm will also vary with processor specifications and architecture.
 Therefore, while we have determined the scheduling algorithms which are the quickest on the ARCHER cluster, there is no guarantee that this would transfer to other clusters, or to other machines.
@@ -468,7 +468,10 @@ Thus, in general production codes, the time spent on parallelising the loops mus
 
 \section*{Conclusion}
 
-This study has evaluated the....
+This study has evaluated the performance of multiple OpenMP-standard algorithms, and implemented and examined a third-party scheduling algorithm, with respect to source code that emulates common computational problems.
+It was found that the static partitioned affinity scheduler performed generally better than the OpenMP-standard routines for imbalanced loops, although performance differences were negligible for only mildly imbalanced loops, where the synchronisation overheads of the affinity scheduler negatively impacted run-time.
+However, this study has not been without limitations, and issues with the original program execution times being small, and the effect of variable performance and architectures, has been acknowledged.
+In general, the results of this study are not transferable to other systems, and similar studies and profilings must be performed to properly choose the correct scheduling algorithms for any given problem.
 
 \bibliographystyle{plainnat}
 
@@ -476,3 +479,4 @@ This study has evaluated the....
 \bibliography{bib.bib}
 
 \end{document}
+
