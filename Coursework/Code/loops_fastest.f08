@@ -1,5 +1,4 @@
 !
-!
 ! Jack Tyler - OpenMP coursework submission
 !
 ! Changelog
@@ -7,6 +6,8 @@
 ! 08-04-19: Implements parallelism
 ! 09-04-19: Converts thread specification to command line argument
 !           (includes standard change: F90 -> F08)
+!
+! *** This program requires an input argument of the number of threads to use to function correctly ***
 !
 
 program loops 

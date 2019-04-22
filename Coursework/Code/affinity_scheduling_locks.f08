@@ -12,9 +12,11 @@
 ! to increase readability at the expense of modularity (e.g. some repeated tasks are not put into standalone
 ! subroutines where the reader would have to go on an adventure to find out what those subroutines do.) 
 !
-! *** The two loops have also not been harmonised into one scheduling routine so as to be able to mark them both 
+! The two loops have also not been harmonised into one scheduling routine so as to be able to mark them both 
 ! independently, and to avoid the processor to need to branch off at every subroutine call (speed; we're
-! try to keep memory in the cache, and want to time as much of the raw performance as we can.) ***
+! try to keep memory in the cache, and want to time as much of the raw performance as we can.) 
+!
+! *** This program requires an input argument of the number of threads to use to function correctly ***
 !
 ! This program is designed for the Fortran 2008 standard (get_command_argument is f03).
 !
