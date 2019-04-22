@@ -11,10 +11,14 @@
 ! In general, subroutines are documented enough for their behaviour to be clear, and efforts have been made
 ! to increase readability at the expense of modularity (e.g. some repeated tasks are not put into standalone
 ! subroutines where the reader would have to go on an adventure to find out what those subroutines do.) 
-! The two loops have also not been harmonised into one scheduling routine so as to be able to avoid the processor 
-! needing to branch off at every subroutine call (speed; we're trying to keep memory in the cache.)
+!
+! The two loops have also not been harmonised into one scheduling routine so as to be able to mark them both 
+! independently, and to avoid the processor to need to branch off at every subroutine call (speed; we're
+! try to keep memory in the cache, and want to time as much of the raw performance as we can.) 
 !
 ! This program is designed for the Fortran 2008 standard (get_command_argument is f03).
+!
+! *** This program requires an input argument of the number of threads to use to function correctly ***
 !
 ! Changelog
 ! ~~~~~~~~~
