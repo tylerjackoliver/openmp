@@ -25,7 +25,7 @@
 \usepackage{soul}
 \usepackage{listings}
 \usepackage{subcaption}
-\lstset{language=[90]Fortran,
+\lstset{language=[08]Fortran,
   basicstyle=\ttfamily,
   keywordstyle=\color{red},
   commentstyle=\color{green},
@@ -57,9 +57,9 @@
 
 \maketitle
 
-In the early days of computing, computational power progressed at an alarming rate; constant field scaling meant that transistors could be fabricated smaller and smaller, allowing them to use less power, increasing their clock speed.
+In the early days of computing, computational power progressed at an alarming rate; constant field scaling meant that transistors could be fabricated smaller and smaller, allowing them to use less power, and increasing their clock speed.
 However, transistor manufacture has hit a physical limit for scaling \citep{Mcfarland1995}, and increasing the clock speed any further would require highly capable cooling solutions impractical for use.
-As a result, processor companies have had to find other methods to speed up computer processor to keep computational power, and Moore's Law, advancing.
+As a result, processor companies have had to find other methods to speed up computer processors to keep computational power, and Moore's Law, advancing.
 Perhaps most prominent is the introduction of parallelism, where multiple processor units may exist on a processor `chip', and execute asynchronously and independently.
 
 This type of parallelism is one of the most common implementations currently used in high-performance computing to decrease program execution time.
@@ -76,7 +76,7 @@ It's possible to quantify a scheduling algorithm's performance based on its effe
 synchronisation, where threads must idle to wait for another thread to finish some task;
 communication, where interactions between processors do not proceed optimally, such as cache misses and non-local memory accesses;
 worker initialisation, where time is required to initialise, schedule and destroy pools of parallel workers;
-and load imbalances, where some threads are idle while others are still performing work.
+and load imbalances, where some threads are idle while others are still performing work \citep{1701915}.
 The latter is perhaps the most important for this run-time optimisation, since the loops studied here are relatively poorly balanced.
 Indeed, a major metric used in this thread is the amount of time threads would spend idling.
 
@@ -86,7 +86,7 @@ In fixed systems, each processor will be assigned a fixed amount of work at loop
 While this can reduce scheduling overhead, in potentially only distributing and synchronising once, this method can be inappropriate for imbalanced loops, since some loops may idle unnecessarily while other threads are still working, providing a bottleneck on execution times.
 Indeed, profiling the programs used later in the report shows that OpenMP scheduling overheads are up to 6\% of program execution time.
 
-In the OpenMP standard, we may also specify the chunk-size -- that is, the number of iterations assigned to each thread -- which can adjust scheduling performance depending on our load balancing.
+In the OpenMP standard, we may also specify the chunk-size -- that is, the number of iterations assigned to each thread -- which can adjust scheduling performance depending on load balancing.
 Small chunk-sizes will incur large scheduling overheads, but will be able to smooth out load imbalances by constantly (re-)assigning work, regardless of other threads being busy.
 Similarly, large chunk-sizes will reduce scheduling overheads, but amplify any load imbalances.
 
@@ -107,7 +107,7 @@ This works well for imbalanced loops, since work can be reassigned when threads 
       
         end do
     \end{lstlisting}
-    \caption{Loop 1; note that this loop is well-balanced, and we should expect each thread to perform approximately the same amount of work for this loop.}
+    \caption{Loop 1; note that this loop is mildly imbalanced as a result of the second loop being biased to the value of the outer loop counter.}
     \label{listing:loop1}
 \end{figure}
 
@@ -155,7 +155,7 @@ The work repeated every 30 iterations will also prevent threads from becoming id
 Loop 1 and Loop 2 represent `embarrassingly parallel' problems, and as such, parallelising the routines was relatively trivial: both loops were enclosed in a \tp{!\$OMP PARALLEL DO} construct, and set such that their arrays were shared (as well as \tp{rN2} in the case of Loop 2), with all other variables set private.
 The scheduling algorithm was then set to be allocated at run-time -- \tp{SCHEDULE(RUNTIME)} -- and the associated \tp{OMP\_RUNTIME} environment variable was exported to the compute node at job submission, which was controlled by a lightweight governing bash script that would parametrically generate the PBS submission file for every possible combination of scheduling algorithm and chunk-size.
 The program was designed to take in the number of threads to use as a command line argument to the program execution.
-The results of an \tp{OMP\_GET\_SCHEDULE} call as part of the main Fortran program were printed to the screen to ensure the correct scheduling algorithms; the call returns integers of type \tp{omp\_schedule\_kind} that can be cross-checked against the scheduling kinds contained in the \tp{omp\_lib\_kinds} module as part of \tp{libgomp}.
+The results of an \tp{OMP\_GET\_SCHEDULE} call as part of the main Fortran program were printed to the screen to ensure the correct scheduling algorithms; the call returns integers of type \tp{omp\_schedule\_kind} that can be cross-checked against the scheduling kinds contained in the \tp{omp\_lib\_kinds} module as part of \tp{gcc}'s source code, available online.
 
 Submitting all of the jobs as a batch also meant that the timing results were more accurate, as jobs were almost-guaranteed to be computed on the same node.
 Each job was repeated five times, and an average taken, to remove the effects of variable computational performance on each run.
@@ -193,16 +193,16 @@ The results for Loop 1 are given in Figure \ref{fig:loop1results}: note that the
 Clearly, the \tp{AUTO} scheduling performs worse than the serial case (note that, while the AUTO execution time has been extended across all chunk-sizes, the chunk-size was not specified and this has been done for clarity only.)
 It is not immediately clear why this scheduling option performs this poorly, as there is no transparency in the scheduling implemented, but it is clear that this option should be avoided.
 
-The performance of the \tp{STATIC, \textit{n}} scheduling routine decreases with increases in chunk-size.
+The performance of the \tp{STATIC,\textit{n}} scheduling routine worsens with increases in chunk-size.
 This is to be expected, and highlights the differences in balance in the loop; when contiguous chunks of $n$ iterations are distributed, the first threads will always perform more work than the final threads as a result of the work distribution for Loop 1.
-For low chunk-sizes, the high-work loops are relatively well-distributed amongst all threads, and thus there is relatively little idling and generally decreased performance time.
-However, when high chunk-sizes are used, the first thread takes the majority of the work, and thus acts as a bottleneck for the program execution: the higher the chunk-size, the longer the final threads are idling waiting for the first thread(s) to finish.
+For low chunk-sizes, the high-work loops are relatively well-distributed amongst all threads, and there is relatively little idling and generally decreased performance time.
+However, when high chunk-sizes are used, the first thread takes the majority of the work, and acts as a bottleneck for the program execution: the higher the chunk-size, the longer the final threads are idling waiting for the first thread(s) to finish.
 
 This is readily seen from the profiling of the \tp{STATIC} scheduling option for chunk-sizes of 1 and 64, respectively (Table \ref{tbl:loop1profiling}), where the work done by all threads for \tp{STATIC,1} is far higher than for \tp{STATIC,64}.
 
 This also explains the behaviour of the \tp{STATIC} algorithms for the case where there's no chunk-size specified.
 In this case, the chunk-size defaults to the ratio of the number of iterations to the number of threads.
-The poorly-balanced first thread will thus act as a bottleneck here.
+The poorly-balanced first thread will again act as a bottleneck here.
 
 \begin{table}[b]
     \centering
@@ -257,16 +257,16 @@ This explains the behaviour of many of the scheduling algorithms above: when the
 Interestingly, \tp{GUIDED} has constant performance for all chunk-sizes.
 This may suggest that only large chunk-sizes are being used in the algorithm, since the chunk-size passed to the program specifies only the minimum chunks. 
 
-\tp{DYNAMIC}, and specifically \tp{DYNAMIC,8}, has the best execution time for this problem. This is again expected, with \tp{DYNAMIC} allowing threads with low amounts of work to accept more.
+\tp{DYNAMIC}, and specifically \tp{DYNAMIC,8}, has the best execution time for this problem. This is again expected, with \tp{DYNAMIC} allowing threads with low amounts of work to accept more. Much of the reasoning for this has been discussed above.
 
 \section*{OpenMP-standard Scheduling: Thread numbers}
 
 Now we have determined the `best' scheduling options for each loop, we may investigate their thread-scaling.
 Ideally, we would experience a true linear scaling, where the execution time decreases as a linear function of the number of threads used.
-However, Amdahl's Law, which is often-cited in parallel computing, provides a good metric for determining the maximum speedup we can expect from a parallel program, and provides the deduction that speeding up programs by using parallelism will be limited by our serial regions. 
-In general, our processor efficiency -- how well we are using all our threads -- is a major limitation on program run-time.
+However, Amdahl's Law, which is often-cited in parallel computing, provides a good metric for determining the maximum speedup we can expect from a parallel program, and provides the deduction that speeding up programs by using parallelism will be limited by our serial regions, and our parallel overheads. 
+% In general, our processor efficiency -- how well we are using all our threads -- is a good metric for the effectiveness of our parallel scheduling.
 
-As a result, it is rare (or near impossible) to see true linear scaling; even for a program that has 95\% of its code base eligible to be parallelised, speed-up will never exceed a factor of 20, no matter how many threads are used.
+Indeed, it is rare (or near impossible) to see true linear scaling; even for a program that has 95\% of its code base eligible to be parallelised, speed-up will never exceed a factor of 20, no matter how many threads are used.
 
 \begin{figure}
     \centering
@@ -294,7 +294,8 @@ Similarly, while the loop is only mildly imbalanced, we are also expecting some 
 
 For Loop 2 (Figure \ref{fig:loop2speedup}), the scaling is generally much worse.
 Much of this, as discussed previously, will be due to synchronisation overheads when threads are kept working, and the extra few high-work iterations spaced evenly through the run-time will prevent threads becoming available.
-Other overheads, such as communication overheads, will also be present, but dominated by the synchronisation overheads.
+
+We also have worker initialisation overheads, where the parallel regimes must be created and destroyed at every invocation at each loop.
 
 \section*{Affinity Scheduling}
 
@@ -372,11 +373,11 @@ For the equivalent number of threads as the scheduling methods visited earlier (
 \end{figure}
 
 The increase in performance for moderate thread numbers is to be expected.
-The initial, large deterministic assignment of iterations to each thread ensures that each thread stores the data it requires in cache.
+The initial large, deterministic assignment of iterations to each thread ensures that each thread stores the data it requires in cache.
 While the \tp{DYNAMIC} and \tp{GUIDED} systems also perform an initially large assignment of iterations, there is no guarantee that it is deterministic.
 
 The load balancing is also only performed when required when using affinity scheduling, whereas \tp{GUIDED} and \tp{DYNAMIC} will perform reassignments -- and thus incur communication and synchronisation overheads -- regardless of the load balancing.
-When profiling, the OpenMP overheads are indeed seen to be lower.
+When profiling, the OpenMP overheads for affinity scheduling are indeed seen to be lower, although as is discussed later, still large.
 
 The performance also scales well with the number of threads, with an increase in speedup ratio of approximately $0.8$ per additional thread: much of the reasoning behind this has been discussed previously.
 
@@ -401,7 +402,8 @@ It could be, therefore, that the data lines for the array does not fit in the pr
 Interestingly, profiling the program shows a total memory usage of 191MB, which provides some evidence to this theory.
 Considering we're dealing with otherwise very quick execution times, this overhead could be significant, although this drop in performance wasn't encountered in the OpenMP-standard routines.
 
-Alternatively, the reduction in performance could be due to competition between threads during the work (re-)assignment phases.
+Alternatively, the reduction in performance could be due to competition between threads during the  
+\tp{CRITICAL} and \tp{LOCK} constructs in the work (re-)assignment phases.
 
 \begin{figure}
     \centering
@@ -450,7 +452,7 @@ The study presented in this work has limitations that should be acknowledged whe
 
 Firstly, and perhaps most importantly, the execution times in this study are very small, with the lowest being $0.019$s for 100 repetitions of the loop being parallelised.
 At such small run times, the program will be dominated by the (serial) overheads of OpenMP, at which point the increase in loop execution performance is diminished.
-As discussed previously, these overheads were reported to be up to $7\%$ during profiling. 
+As discussed previously, these overheads were reported to be up to $6\%$ during profiling. 
 
 Furthermore, at these small run times, the effect of variable compute performance is exacerbated. 
 While every attempt was made to attempt to ensure all jobs were run on the same node -- by submitting all jobs as a batch and adjusted using environment variables -- some variable performance is possible, although averages of several run times were used.
@@ -458,10 +460,10 @@ In particular, the profiling was performed separate to the main set of runs.
 
 Also, traditional scientific codes typically use double-precision \tp{REAL}s, where these loops use single-precision \tp{REAL}s.
 Representing numbers in double-precision incurs a performance overhead:
-When using the \tp{-s real64} flag with the Cray Fortran compiler on ARCHER, the loop execution times increase by approximately 10\textsuperscript{-3}.
+when using the \tp{-s real64} flag with the Cray Fortran compiler on ARCHER, the loop execution times increase by approximately 10\textsuperscript{-3}.
 Given that execution times are on the order of 10\textsuperscript{-2}, this difference may be significant, and could potentially affect the performance of different scheduling routines.
 
-The best scheduling algorithm will also vary with processor specifications and architecture.
+The best scheduling algorithm will also vary with processor specifications, architecture, and the problem being investigated.
 Therefore, while we have determined the scheduling algorithms which are the quickest on the ARCHER cluster, there is no guarantee that this would transfer to other clusters, or to other machines.
 
 This study also only concerns itself with the performance gain from implementing OpenMP.
@@ -477,8 +479,6 @@ In general, the results of this study are not transferable to other systems, and
 
 \bibliographystyle{plainnat}
 
-\newpage
 \bibliography{bib.bib}
 
 \end{document}
-

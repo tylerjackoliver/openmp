@@ -14,7 +14,7 @@
 ! The two loops have also not been harmonised into one scheduling routine so as to be able to avoid the processor 
 ! needing to branch off at every subroutine call (speed; we're trying to keep memory in the cache.)
 !
-! This program is designed for the Fortran 2003 standard (get_command_argument is f03).
+! This program is designed for the Fortran 2008 standard (get_command_argument is f03).
 !
 ! Changelog
 ! ~~~~~~~~~
@@ -46,7 +46,6 @@ program loops
     real(kind=8)              :: start2                                                                 ! Start time for loop2()
     real(kind=8)              :: end1                                                                   ! End time for loop1()
     real(kind=8)              :: end2                                                                   ! End time for loop2()
-
 
     ! Allocate work arrays; avoids array declaration problems with non-constant integers
 
@@ -163,7 +162,8 @@ end subroutine init2
 subroutine run_loop1()
 
     !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 1.
+    ! Implements static partitioned affinity scheduling from (Markatos and LeBlanc, 1994) 
+    ! for loop 1.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
@@ -274,7 +274,7 @@ subroutine run_loop1()
         !
         ! Now we know where the most work is, we need to steal the work from that thread.
         !
-        ! Do this by overriding the lower counters for *this* thread to emulate that of the *other*
+        ! Do this by overriding the thread ID for *this* thread to emulate that of the *other*
         ! thread; note the difference in convention for OpenMP and Fortran indexing (no +1 is needed).
         !
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.
@@ -329,7 +329,8 @@ end subroutine loop1_chunk
 subroutine run_loop2()
     
     !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 2.
+    ! Implements static partitioned affinity scheduling from (Markatos and LeBlanc, 1994)
+    !  for loop 2.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
@@ -445,7 +446,7 @@ subroutine run_loop2()
         !
         ! Now we know where the most work is, we need to steal the work from that thread.
         !
-        ! Do this by overriding the lower counters for *this* thread to emulate that of the *other*
+        ! Do this by overriding the thread ID for *this* thread to emulate that of the *other*
         ! thread; note the difference in convention for OpenMP and Fortran indexing (no +1 is needed).
         !
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.

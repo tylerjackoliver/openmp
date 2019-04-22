@@ -5,17 +5,18 @@
 !
 !   - loop1() and loop2() have been removed, and in their places are loop1_chunk(a, b) and loop2_chunk(a, b),
 !      which run loop1 and loop2 for the outer loop values specified by a and b.
-!   - loop1_chunk1() and loop1_chunk2() provide the main subroutines for computing the affinity-scheduled loops, and
+!   - run_loop1() and run_loop2() provide the main subroutines for computing the affinity-scheduled loops, and
 !     handle all the scheduling and the running of loop1/2 in chunks.
 !   
 ! In general, subroutines are documented enough for their behaviour to be clear, and efforts have been made
 ! to increase readability at the expense of modularity (e.g. some repeated tasks are not put into standalone
 ! subroutines where the reader would have to go on an adventure to find out what those subroutines do.) 
-! The two loops have also not been harmonised into one scheduling routine so as to be able to mark them both 
-! independently, and to avoid the processor to need to branch off at every subroutine call (speed; we're
-! try to keep memory in the cache.)
 !
-! This program is designed for the Fortran 2003 standard (get_command_argument is f03).
+! *** The two loops have also not been harmonised into one scheduling routine so as to be able to mark them both 
+! independently, and to avoid the processor to need to branch off at every subroutine call (speed; we're
+! try to keep memory in the cache, and want to time as much of the raw performance as we can.) ***
+!
+! This program is designed for the Fortran 2008 standard (get_command_argument is f03).
 !
 ! Changelog
 ! ~~~~~~~~~
@@ -166,7 +167,8 @@ end subroutine init2
 subroutine run_loop1()
 
     !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 1.
+    ! Implements static partitioned affinity scheduling from (Markatos and LeBlanc, 1994)
+    ! for loop 1.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
@@ -177,14 +179,13 @@ subroutine run_loop1()
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
     integer             :: iter_range(nthreads)                                                         ! Values of the loop-counter for which a thread is to execute
-                                                                                                        ! Col 1: low; Col 2: high
+    
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
     integer             :: lower_counter                                                                ! Holds lower bound for chunking
     integer             :: most_work                                                                    ! Holds the thread ID of the thread with the most work left
     integer             :: remaining_iters                                                              ! Remaining iterations for each thread (scoped private)
     integer             :: chunk_size                                                                   ! Number of iterations taken by each thread (scoped private)
-
     integer             :: i                                                                            ! Loop variable
 
     integer(kind=&
@@ -202,6 +203,10 @@ subroutine run_loop1()
 
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
     default_chunk = ceiling(dble(N * p_quotient)) + 1                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
+
+    !
+    ! Initialise our locks
+    !
 
     do i = 1,nthreads
 
@@ -261,7 +266,7 @@ subroutine run_loop1()
 
         ! Back in the parallel region; compute this chunk    
 
-        call loop1_chunk(lower_counter, lower_counter + chunk_size)                                     ! Compute chunk_size iterations of the loop from (i=) lower_counter
+        call loop1_chunk(lower_counter, lower_counter + chunk_size)                                     ! Compute chunk_size iterations of the loop from (i=) lower_counter to our assigned chunk
 
         ! Any work left to do for this thread?
 
@@ -292,7 +297,7 @@ subroutine run_loop1()
         !
         ! Now we know where the most work is, we need to steal the work from that thread.
         !
-        ! Do this by overriding the lower counters for *this* thread to emulate that of the *other*
+        ! Do this by overriding the thread ID for *this* thread to emulate that of the *other*
         ! thread; note the difference in convention for OpenMP and Fortran indexing (no +1 is needed).
         !
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.
@@ -362,7 +367,8 @@ end subroutine loop1_chunk
 subroutine run_loop2()
     
     !
-    ! Implements static partitioned affinity scheduling from (Subramaniam, 1994) for loop 1.
+    ! Implements static partitioned affinity scheduling from (Markatos and LeBlanc, 1994)
+    ! for loop 2.
     !
     ! In particular, each loop performs a set amount of local work, before 'stealing' remaining
     ! work from other, still-busy threads.
@@ -373,19 +379,18 @@ subroutine run_loop2()
 
     integer             :: num_iters(nthreads)                                                          ! Array of local sets: used to monitor thread progress
     integer             :: iter_range(nthreads)                                                         ! Values of the loop-counter for which a thread is to execute
-                                                                                                        ! Col 1: low; Col 2: high
+    
     integer             :: default_chunk                                                                ! Standard size of local set; essentially n/p
     integer             :: thread_id                                                                    ! Current thread number; used to parameterise chunking
     integer             :: lower_counter                                                                ! Holds lower bound for chunking
     integer             :: most_work                                                                    ! Holds the thread ID of the thread with the most work left
-    integer             :: remaining_iters 
-    integer             :: chunk_size
+    integer             :: remaining_iters                                                              ! Remaining iterations for each thread (scoped private)
+    integer             :: chunk_size                                                                   ! Number of iterations taken by each thread (scoped private)
+    integer             :: i                                                                            ! Loop variable
     
     integer(kind=&
     OMP_LOCK_KIND)      :: lock_array(nthreads)
 
-    integer             :: i                                                                            ! Loop variable
-    
     real                :: p_quotient                                                                   ! Slight optimisation: pre-compute 1/p (1/N)
 
     !
@@ -398,6 +403,10 @@ subroutine run_loop2()
 
     p_quotient = 1.  /  real(nthreads)                                                                  ! Pre-compute 1/n_threads (1/p) for efficiency
     default_chunk = ceiling(dble(N * p_quotient)) + 1                                                   ! Compute the *nominal* (+remainder) amount of work per thread. 
+
+    !
+    ! Initialise our locks
+    !
 
     do i = 1,nthreads
 
@@ -484,7 +493,7 @@ subroutine run_loop2()
         !
         ! Now we know where the most work is, we need to steal the work from that thread.
         !
-        ! Do this by overriding the lower counters for *this* thread to emulate that of the *other*
+        ! Do this by overriding the thread ID for *this* thread to emulate that of the *other*
         ! thread; note the difference in convention for OpenMP and Fortran indexing (no +1 is needed).
         !
         ! Again, we could pretty this up, but for the sake of four lines let's avoid the scrolling.
